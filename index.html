@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>QS-Bautenstand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --charcoal:#1C1F22;
+    --concrete:#E8E7E3;
+    --concrete-2:#D8D6D0;
+    --accent:#A9925A;
+    --accent-dark:#8A7845;
+    --rust:#B0413E;
+    --white:#FFFFFF;
+    --ink:#1C1F22;
+    --muted:#6B6F73;
+    --line:#CFCDC6;
+    --radius:4px;
+    --green:#5C8A3A;
+    --blue:#3E7FA6;
+    --orange:#D98A2B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--concrete); color:var(--ink); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding-bottom:76px; }
+  h1,h2,h3,.display{ font-family:'Archivo',system-ui,sans-serif; font-weight:800; letter-spacing:-0.01em; margin:0; }
+  header.top{ background:var(--charcoal); color:var(--white); padding:14px 16px; position:sticky; top:0; z-index:20; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  header.top .proj{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); font-weight:700; margin-bottom:2px; }
+  header.top h1{ font-size:20px; color:var(--white); }
+  header.top .app-logo{ height:30px; width:30px; object-fit:contain; flex-shrink:0; filter:invert(1) brightness(1.8); opacity:0.92; }
+  .container{ max-width:640px; margin:0 auto; padding:16px; }
+  nav.tabbar{ position:fixed; bottom:0; left:0; right:0; background:var(--charcoal); display:flex; z-index:30; border-top:2px solid var(--accent); }
+  nav.tabbar button{ flex:1; background:none; border:none; color:#9CA0A4; font-family:'Inter'; font-weight:600; font-size:13px; padding:12px 8px 10px; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; }
+  nav.tabbar button.active{ color:var(--accent); }
+  nav.tabbar svg{ width:20px; height:20px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .card{ background:var(--white); border-radius:var(--radius); padding:16px; margin-bottom:14px; border:1px solid var(--line); }
+  .card h2{ font-size:15px; text-transform:uppercase; letter-spacing:0.04em; color:var(--charcoal); margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid var(--concrete-2); }
+  label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; margin-top:14px; }
+  label:first-of-type{ margin-top:0; }
+  input[type=text],input[type=number],textarea,select{ width:100%; border:1.5px solid var(--line); border-radius:var(--radius); padding:11px 10px; font-family:'Inter'; font-size:15px; background:var(--concrete); color:var(--ink); }
+  input:focus,textarea:focus,select:focus{ outline:2px solid var(--accent-dark); outline-offset:1px; background:var(--white); }
+  textarea{ resize:vertical; min-height:64px; }
+  textarea.mono{ font-family:'SFMono-Regular',Consolas,monospace; font-size:12.5px; min-height:80px; }
+  .type-toggle{ display:flex; gap:8px; }
+  .type-toggle button{ flex:1; padding:12px 6px; border-radius:var(--radius); border:1.5px solid var(--line); background:var(--concrete); font-family:'Inter'; font-weight:700; font-size:13px; cursor:pointer; color:var(--muted); }
+  .type-toggle button.on[data-type="doku"]{ background:var(--charcoal); color:var(--white); border-color:var(--charcoal); }
+  .type-toggle button.on[data-type="veranlassung"]{ background:var(--rust); color:var(--white); border-color:var(--rust); }
+  label.photo-box{ border:2px dashed var(--line); border-radius:var(--radius); background:var(--concrete); text-align:center; padding:22px 12px; cursor:pointer; position:relative; overflow:hidden; display:block; }
+  .photo-box img{ display:block; width:100%; max-height:280px; object-fit:cover; border-radius:2px; }
+  .photo-box .cta{ color:var(--muted); font-weight:600; font-size:14px; }
+  .photo-box .cta .big{ display:block; font-family:'Archivo'; font-size:17px; color:var(--charcoal); margin-top:6px; }
+  .photo-box svg{ width:34px; height:34px; color:var(--muted); }
+  .btn-primary{ width:100%; background:var(--charcoal); color:var(--white); border:none; border-radius:var(--radius); font-family:'Archivo'; font-weight:800; font-size:16px; padding:15px; margin-top:18px; cursor:pointer; }
+  .btn-primary:disabled{ background:var(--concrete-2); color:var(--muted); }
+  .btn-secondary{ width:100%; background:var(--white); color:var(--charcoal); border:1.5px solid var(--charcoal); border-radius:var(--radius); font-family:'Inter'; font-weight:700; font-size:14px; padding:11px; cursor:pointer; }
+  .btn-secondary.small{ width:auto; padding:7px 12px; font-size:12px; }
+  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .recent-item{ display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--concrete-2); align-items:center; }
+  .recent-item:last-child{ border-bottom:none; }
+  .recent-item img{ width:52px; height:52px; object-fit:cover; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
+  .recent-item .meta{ flex:1; min-width:0; }
+  .recent-item .meta .t1{ font-weight:700; font-size:13px; }
+  .recent-item .meta .t2{ font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .badge{ display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 6px; border-radius:2px; background:var(--concrete-2); color:var(--charcoal); margin-right:6px; }
+  .badge.rust{ background:var(--rust); color:var(--white); }
+  .del-btn{ background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px 8px; }
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:18px 0; }
+  .conn-status{ display:none; align-items:center; gap:8px; font-size:12px; font-weight:600; padding:9px 12px; border-radius:var(--radius); margin-bottom:14px; }
+  .conn-status .dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .conn-status.ok{ background:#E7F3E8; color:#2A6B33; }
+  .conn-status.ok .dot{ background:#2A6B33; }
+  .conn-status.bad{ background:#FBEFEE; color:var(--rust); }
+  .conn-status.bad .dot{ background:var(--rust); }
+  .report-meta{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .report-meta .full{ grid-column:1 / -1; }
+  .logo-upload{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .logo-upload img{ height:34px; }
+  .actionbar{ display:flex; gap:10px; margin-bottom:14px; }
+  .actionbar button{ flex:1; }
+  .edit-group h3{ font-size:13px; text-transform:uppercase; letter-spacing:0.03em; margin:16px 0 8px; color:var(--muted); }
+  .edit-group h3:first-child{ margin-top:0; }
+  .edit-row{ display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--concrete-2); }
+  .edit-thumb img{ width:56px; height:56px; object-fit:cover; border-radius:3px; border:1px solid var(--line); }
+  .edit-fields{ flex:1; display:flex; flex-direction:column; gap:6px; }
+  .edit-fields input, .edit-fields textarea{ padding:7px 8px; font-size:13px; margin:0; }
+  .edit-fields textarea{ min-height:44px; }
+  .edit-row{ align-items:flex-start; }
+  .drag-handle{ width:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--muted); cursor:grab; touch-action:none; user-select:none; padding-top:14px; }
+  .edit-row.dragging{ opacity:0.85; box-shadow:0 6px 16px rgba(0,0,0,0.18); background:var(--white); position:relative; z-index:5; }
+  .edit-actions{ display:flex; gap:8px; align-items:center; margin-top:2px; }
+  .report-page{ background:var(--white); border:1px solid var(--line); padding:34px 30px 46px; margin-bottom:16px; position:relative; min-height:400px; font-size:12.5px; color:#000; }
+  .rp-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:20px; }
+  .rp-header .titles .t1{ font-family:'Archivo'; font-weight:700; font-size:16px; }
+  .rp-header .titles .t2{ font-size:12px; margin-top:2px; }
+  .rp-header .logo-mark img{ height:32px; }
+  .logo-placeholder{ width:36px; height:36px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:2px; }
+  .logo-placeholder div{ background:#000; }
+  .rp-footer{ position:absolute; left:30px; right:30px; bottom:16px; display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); border-top:1px solid var(--concrete-2); padding-top:6px; }
+  .cover-title{ font-family:'Archivo'; font-weight:800; font-size:18px; letter-spacing:0.12em; margin-bottom:22px; }
+  table.meta-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:20px; }
+  table.meta-table td{ padding:4px 0; vertical-align:top; }
+  table.meta-table td.k{ width:150px; text-decoration:underline; }
+  table.verteiler-table, table.rahmen-table, table.doku-index{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:18px; }
+  table.verteiler-table th, table.verteiler-table td, table.rahmen-table th, table.rahmen-table td, table.doku-index th, table.doku-index td{ border:1px solid #000; padding:5px 7px; text-align:left; vertical-align:top; }
+  table.verteiler-table th, table.rahmen-table th, table.doku-index th{ font-family:'Archivo'; font-weight:700; font-size:11px; }
+  table.rahmen-table td.status-cell{ width:14px; padding:0; }
+  .status-swatch{ width:14px; height:100%; min-height:18px; display:block; }
+  .status-swatch.im-termin{ background:var(--green); }
+  .status-swatch.nicht-kritisch{ background:var(--blue); }
+  .status-swatch.plus2{ background:var(--orange); }
+  .status-swatch.plus4{ background:var(--rust); }
+  .legend{ display:flex; flex-direction:column; gap:4px; font-size:11px; margin-top:10px; }
+  .legend .row{ display:flex; align-items:center; gap:8px; }
+  .legend .sw{ width:16px; height:12px; display:inline-block; }
+  .toc-line{ display:flex; align-items:baseline; gap:6px; font-size:13px; margin-bottom:6px; }
+  .toc-line .dots{ flex:1; border-bottom:1px dotted var(--muted); position:relative; top:-3px; }
+  h3.section{ font-size:14px; border-bottom:1px solid #000; padding-bottom:6px; margin-bottom:14px; }
+  .day-line{ font-weight:700; padding:5px 0; margin:16px 0 4px; border-bottom:1px solid #000; font-size:11.5px; }
+  .entry{ display:grid; grid-template-columns:1fr 260px; gap:16px; padding:16px 0; border-bottom:1px solid var(--concrete-2); align-items:start; }
+  .entry .num{ font-weight:700; }
+  .entry .txt-line{ margin-bottom:2px; }
+  .entry img{ width:260px; height:175px; object-fit:cover; border-radius:2px; border:1px solid var(--line); }
+  .stand-line{ margin-top:6px; }
+  details.help{ margin-top:8px; }
+  details.help summary{ font-size:12px; color:var(--muted); cursor:pointer; }
+  details.help .ex{ font-size:11px; color:var(--muted); background:var(--concrete); padding:8px; border-radius:var(--radius); margin-top:6px; font-family:monospace; white-space:pre-wrap; }
+  @media print{
+    body{ background:white; padding-bottom:0; }
+    header.top, nav.tabbar, .no-print{ display:none !important; }
+    .container{ max-width:100%; padding:0; }
+    .report-page{ border:none; page-break-after:always; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <div class="proj" id="headerProj">XY | München — Baustelle XY</div>
+    <h1>QS-Bautenstand</h1>
+  </div>
+  <img class="app-logo" id="headerLogo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEUAAABFCAMAAAArU9sbAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAGnUExURf////7+/tvb25mZmZGRkY+Pj5ycnOjo6KysrJCQkMvLy/39/ZeXl0REREVFRTk5OcXFxcDAwFFRUUFBQWFhYczMzI6OjkZGRjs7O7u7u8HBwVJSUkJCQmBgYEdHR0lJSUhISF9fX4mJiYyMjIqKiouLi1xcXI2NjXV1dYODgz8/P/n5+cLCwjw8PPj4+IGBgT4+Pjo6OvX19b+/v/v7+4WFhUpKSr29va+vr9XV1e/v79zc3N7e3vPz80NDQ9bW1qmpqZ6enjMzMzIyMra2tqKiorq6uqGhoaioqFNTU05OTvz8/Kenp62trWdnZ66uroKCgoSEhIeHh/f39/b29vDw8H5+fmhoaJ+fnz09Pbm5ucrKypaWljQ0NMfHx0tLS/T09Ly8vDc3N2NjY9PT09HR0eTk5Onp6dnZ2YiIiLCwsPHx8e7u7uzs7MjIyICAgN/f339/f3t7e6SkpJKSksPDw8/Pz7e3t0BAQGpqaqqqqqWlpfLy8ri4uPr6+mVlZZubm5iYmJWVlX19fU1NTV5eXllZWdjY2Orq6uHh4ZqampOTk76+vrsXhk4AAAAJcEhZcwAAFxEAABcRAcom8z8AAANnSURBVFhH3ZjpV1JBFMDvCzD1BWoYICIPASMhFU1xKyst06i0tAVbUCvN1GxfbLOibPujOzODvJnLvIX0Q6efXzhzr78zc99s7wGAYgZQcKsAzdjncBriqtpPJdU4oFPjrFUA1ANujzF19cTScNAkx9t4CED1efzGBJpIh4PNJjmhltq9tYS1csLIguOapkUES7jVFY3Fi39tlFj8sFuweOIJTM2REG/R2tgT5VHak4IllMIZAEc7rCydXWm/v5uz9OAMgGOiJYrjAL19oUwm2b9by0BfPN4+SH7atGRiOC5g0yLrC4ddi6S6HHYtdvoiedJB0RLfaVeGho9zDJ+gycQycpIPME6l5dVNnR5Nc4yd0VdAkg8wvGH5iFJnO/ilFhivYDXq1d2VRe/LuW53EfKfvGWnnYM0y6qbmtCaKZPNGY9oYe08k+fJs5NUNzt4oZpyceJSSLC4iwGOqahXPiKOPrIz6JaQihMA6gPyEemkppHlr+auejldqeXKTA9i9uq1SvsSuX6jCuNoFKtrbfGP5MpIu8X5YsNihG1LzNQyRywNppbWmwDqrQAei07H7SCx3MkHcrm6eewAWBjL5Rbv3gOA+z6XAT5fLLZEkpcdvoQrKtmlHqzEfPGHq7hZQAF9uqqQFWJFlCzp6//J6pqEIcraPBt2Dw5zrNOqP5rekNBF2dh4TFKWfE9wXOfps3UA9XkO7+wco/S0f5E3yalreQmgJkzn7ivysOncNYLNXbvryAh+TaeTZdA1vUDqwiyvcUISnWqRN1ObiGq2e9PVyHbvtzhlc2BF2L0zbUoWoXZOkx1Tt4Te4ZQs9FvePLJ0331PqsssszgDoMHyLvWBngEV3Q4lJwmz6NW1YZGcJOw8mtNHZGmRjai3HVXX0iIbUbEvlVgkfWHndBP5xSySXU08p8MftxyYT40jQnXdn3GGY+uL8Dbh1wrlkNcWbr74cbxQKOTRWxZ+j/N4aDNXF1mKeJcyhLcYYNEXwuJ4qS5GKd6vpf0lks/ICH/b1i04yNDCNe92nnTXdynL670ly8gPHGUsk+u54azjYPNlBjdzGK4jDsO5W8JwHXHYtOxNX/4pi2Tf5bBr2XVfyPeXyApuFgiS7y9eM4uy/dP1y/kbNwsoU06XKyG513HoH5cMsUr5Ax5gj6pG+yeiAAAAAElFTkSuQmCC" alt="Logo">
+</header>
+
+<div class="container">
+
+  <div class="conn-status no-print" id="connStatus"></div>
+
+  <!-- ===================== ERFASSEN ===================== -->
+  <section id="view-capture" class="view active">
+
+    <div class="card no-print">
+      <h2>Baustellenbesichtigung fortsetzen</h2>
+      <div class="hint">Fotos werden direkt in deine Fotogalerie gespeichert (Button "Galerie" bei jedem Eintrag). Die Textangaben bleiben in dieser Sitzung erhalten. Für einen Monatsbericht mit mehreren Besichtigungen: am Ende jeder Besichtigung unten im Bericht-Tab "1. Berichtsdaten herunterladen" — die Datei beim nächsten Termin hier wieder laden, dann geht es mit denselben Einträgen weiter.</div>
+      <label style="margin-top:14px">Vorherige Sitzung laden (fortsetzen)</label>
+      <input type="file" accept=".json" id="continueImportInput" onchange="importContinueFile(event)">
+    </div>
+
+    <div class="card">
+      <h2>Neue Feststellung</h2>
+      <label>Art der Feststellung</label>
+      <div class="type-toggle">
+        <button type="button" class="on" data-type="doku" onclick="setType('doku')">Dokumentation</button>
+        <button type="button" data-type="veranlassung" onclick="setType('veranlassung')">Veranlassung</button>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0">
+        <input type="checkbox" id="fTimestamp" checked style="width:auto;margin:0">
+        <span style="font-weight:600;color:var(--muted);font-size:12px">Datum/Uhrzeit ins Foto einblenden</span>
+      </label>
+      <label>Foto</label>
+      <label class="photo-box" for="photoInput">
+        <div id="photoPlaceholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <div class="cta">Foto auswählen<span class="big">aus Timestamp Camera Basic / Galerie</span></div>
+        </div>
+        <img id="photoPreview" style="display:none">
+      </label>
+      <input type="file" id="photoInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="handlePhoto(event)">
+      <div class="hint">Foto zuerst mit Timestamp Camera Basic aufnehmen (Datum/Uhrzeit wird dort ins Bild eingebrannt), dann hier aus der Fotogalerie auswählen.</div>
+
+      <label>Gewerk</label>
+      <input type="text" id="fGewerk" placeholder="z. B. Rohbau, Abdichtung, Elektro">
+      <label>Ort</label>
+      <input type="text" id="fOrt" placeholder="z. B. Haus 1, Süd">
+      <label>Bauteil</label>
+      <input type="text" id="fBauteil" placeholder="z. B. Decke über 1.OG, Achse M-N">
+      <label>Info / Ausgeführte Arbeiten</label>
+      <textarea id="fArbeiten" placeholder="z. B. Schalungsarbeiten, Bewehrung eingebaut …"></textarea>
+      <label>Material <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <input type="text" id="fMaterial" placeholder="z. B. Bitumenbahn XY">
+      <div id="veranlassungFields" style="display:none">
+        <label>Verantwortlichkeit</label>
+        <input type="text" id="fVerantwortlich" placeholder="z. B. GE, NU Rohbau">
+      </div>
+      <div class="row2">
+        <div><label>Datum</label><input type="text" id="fDatum" readonly></div>
+        <div><label>Bearbeiter (Kürzel)</label><input type="text" id="fKuerzel" placeholder="z. B. NFM"></div>
+      </div>
+      <button class="btn-primary" id="saveBtn" onclick="saveEntry()" disabled>Zuerst Ordner auswählen (siehe oben)</button>
+      <div class="hint" id="saveHint">Wird in dieser Sitzung gesammelt. Foto wird zusätzlich zum Sichern in die Galerie angeboten.</div>
+    </div>
+
+    <div class="card">
+      <h2>Zuletzt erfasst</h2>
+      <div id="recentList"><div class="empty">Noch keine Einträge</div></div>
+    </div>
+
+  </section>
+
+  <!-- ===================== BERICHT ===================== -->
+  <section id="view-report" class="view">
+
+    <div class="card no-print">
+      <h2>Berichtskopf</h2>
+      <div class="report-meta">
+        <div class="full"><label>Projekt / Baustelle</label><input type="text" id="rProjekt" value="XY | München"></div>
+        <div><label>Baustellenbezeichnung</label><input type="text" id="rBaustelle" value="Baustelle XY"></div>
+        <div><label>Kunde</label><input type="text" id="rKunde" placeholder="Kundenname"></div>
+        <div><label>Verfasser (Kürzel)</label><input type="text" id="rVerfasser" placeholder="z. B. NFM"></div>
+        <div><label>Datum Bericht</label><input type="text" id="rDatum"></div>
+        <div><label>Berichts-Nr.</label><input type="number" id="rBerichtsNr" value="1" min="1"></div>
+        <div><label>Witterung Min.</label><input type="text" id="rTempMin" placeholder="z. B. 16°C"></div>
+        <div><label>Witterung Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22°C"></div>
+        <div class="full"><label>Dateiname (Fußzeile)</label><input type="text" id="rDateiname" placeholder="z. B. 260731_NFM-QS-Bautenstand_005.docx"></div>
+      </div>
+      <label>Firmenlogo <span style="font-weight:400;color:var(--muted)">(optional, nur für diese Sitzung)</span></label>
+      <div class="logo-upload">
+        <input type="file" accept="image/*" id="logoInput" onchange="handleLogo(event)">
+        <img id="logoPreview" style="display:none">
+      </div>
+      <label>Verteiler <span style="font-weight:400;color:var(--muted)">(eine Zeile je Empfänger)</span></label>
+      <textarea class="mono" id="rVerteiler" placeholder="Name; Firma; Kürzel; E-Mail"></textarea>
+      <details class="help"><summary>Format-Beispiel</summary><div class="ex">Max Mustermann; Mustermann GmbH; MM; max.mustermann@mail.com</div></details>
+      <label>Rahmentermine <span style="font-weight:400;color:var(--muted)">(eine Zeile je Position — manuell gepflegt)</span></label>
+      <textarea class="mono" id="rRahmen" placeholder="Bezeichnung; Terminplan; Bautenstand %; Status"></textarea>
+      <details class="help"><summary>Format-Beispiel &amp; Status-Werte</summary><div class="ex">Rohbau; 03.03.2026 - 30.10.2026; 50%; im-termin
+Huelle; 30.11.2026 - 09.07.2027; 0%; nicht-kritisch
+Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
+    </div>
+
+    <div class="card no-print">
+      <h2>Reihenfolge &amp; Text bearbeiten</h2>
+      <div class="edit-group">
+        <h3>Dokumentation</h3>
+        <div id="editorDoku"><div class="empty">Keine Einträge</div></div>
+        <h3>Veranlassungen</h3>
+        <div id="editorVeranl"><div class="empty">Keine Einträge</div></div>
+      </div>
+    </div>
+
+    <div class="card no-print">
+      <div class="actionbar">
+        <button class="btn-secondary" onclick="refreshReportViews()">Bericht aktualisieren</button>
+        <button class="btn-secondary" onclick="window.print()">Drucken / Vorschau</button>
+      </div>
+      <button class="btn-primary" onclick="generateWordReport()" id="genWordBtn">Word-Bericht erstellen</button>
+      <div class="hint" id="genWordHint">Erstellt die fertige Word-Datei direkt hier, im exakten Vorlagenformat — kein Chat-Umweg nötig.</div>
+
+      <details class="help" style="margin-top:14px">
+        <summary>Alternative: Rohdaten für den Chat mit Claude herunterladen</summary>
+        <div class="ex">Falls die Word-Erstellung oben einmal nicht erreichbar ist, kannst du die Daten stattdessen als Datei herunterladen und sie in einem Chat bei Claude hochladen.</div>
+        <button class="btn-secondary small" style="margin-top:8px" onclick="exportForWordReport()">Berichtsdaten herunterladen (.json)</button>
+      </details>
+    </div>
+
+    <div class="report-doc" id="reportOutput"></div>
+
+  </section>
+
+</div>
+
+<nav class="tabbar no-print">
+  <button class="active" id="tab-capture" onclick="switchTab('capture')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    Erfassen
+  </button>
+  <button id="tab-report" onclick="switchTab('report')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg>
+    Bericht
+  </button>
+</nav>
+
+<script>
+let allEntries = [];
+let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEUAAABFCAMAAAArU9sbAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAGnUExURf////7+/tvb25mZmZGRkY+Pj5ycnOjo6KysrJCQkMvLy/39/ZeXl0REREVFRTk5OcXFxcDAwFFRUUFBQWFhYczMzI6OjkZGRjs7O7u7u8HBwVJSUkJCQmBgYEdHR0lJSUhISF9fX4mJiYyMjIqKiouLi1xcXI2NjXV1dYODgz8/P/n5+cLCwjw8PPj4+IGBgT4+Pjo6OvX19b+/v/v7+4WFhUpKSr29va+vr9XV1e/v79zc3N7e3vPz80NDQ9bW1qmpqZ6enjMzMzIyMra2tqKiorq6uqGhoaioqFNTU05OTvz8/Kenp62trWdnZ66uroKCgoSEhIeHh/f39/b29vDw8H5+fmhoaJ+fnz09Pbm5ucrKypaWljQ0NMfHx0tLS/T09Ly8vDc3N2NjY9PT09HR0eTk5Onp6dnZ2YiIiLCwsPHx8e7u7uzs7MjIyICAgN/f339/f3t7e6SkpJKSksPDw8/Pz7e3t0BAQGpqaqqqqqWlpfLy8ri4uPr6+mVlZZubm5iYmJWVlX19fU1NTV5eXllZWdjY2Orq6uHh4ZqampOTk76+vrsXhk4AAAAJcEhZcwAAFxEAABcRAcom8z8AAANnSURBVFhH3ZjpV1JBFMDvCzD1BWoYICIPASMhFU1xKyst06i0tAVbUCvN1GxfbLOibPujOzODvJnLvIX0Q6efXzhzr78zc99s7wGAYgZQcKsAzdjncBriqtpPJdU4oFPjrFUA1ANujzF19cTScNAkx9t4CED1efzGBJpIh4PNJjmhltq9tYS1csLIguOapkUES7jVFY3Fi39tlFj8sFuweOIJTM2REG/R2tgT5VHak4IllMIZAEc7rCydXWm/v5uz9OAMgGOiJYrjAL19oUwm2b9by0BfPN4+SH7atGRiOC5g0yLrC4ddi6S6HHYtdvoiedJB0RLfaVeGho9zDJ+gycQycpIPME6l5dVNnR5Nc4yd0VdAkg8wvGH5iFJnO/ilFhivYDXq1d2VRe/LuW53EfKfvGWnnYM0y6qbmtCaKZPNGY9oYe08k+fJs5NUNzt4oZpyceJSSLC4iwGOqahXPiKOPrIz6JaQihMA6gPyEemkppHlr+auejldqeXKTA9i9uq1SvsSuX6jCuNoFKtrbfGP5MpIu8X5YsNihG1LzNQyRywNppbWmwDqrQAei07H7SCx3MkHcrm6eewAWBjL5Rbv3gOA+z6XAT5fLLZEkpcdvoQrKtmlHqzEfPGHq7hZQAF9uqqQFWJFlCzp6//J6pqEIcraPBt2Dw5zrNOqP5rekNBF2dh4TFKWfE9wXOfps3UA9XkO7+wco/S0f5E3yalreQmgJkzn7ivysOncNYLNXbvryAh+TaeTZdA1vUDqwiyvcUISnWqRN1ObiGq2e9PVyHbvtzhlc2BF2L0zbUoWoXZOkx1Tt4Te4ZQs9FvePLJ0331PqsssszgDoMHyLvWBngEV3Q4lJwmz6NW1YZGcJOw8mtNHZGmRjai3HVXX0iIbUbEvlVgkfWHndBP5xSySXU08p8MftxyYT40jQnXdn3GGY+uL8Dbh1wrlkNcWbr74cbxQKOTRWxZ+j/N4aDNXF1mKeJcyhLcYYNEXwuJ4qS5GKd6vpf0lks/ICH/b1i04yNDCNe92nnTXdynL670ly8gPHGUsk+u54azjYPNlBjdzGK4jDsO5W8JwHXHYtOxNX/4pi2Tf5bBr2XVfyPeXyApuFgiS7y9eM4uy/dP1y/kbNwsoU06XKyG513HoH5cMsUr5Ax5gj6pG+yeiAAAAAElFTkSuQmCC"; // Standardlogo (Datei-Upload überschreibt dies)
+
+function todayStr(){ return new Date().toLocaleDateString('de-DE'); }
+document.getElementById('fDatum').value = todayStr();
+document.getElementById('rDatum').value = todayStr();
+document.getElementById('logoPreview').src = logoDataUrl;
+document.getElementById('logoPreview').style.display = 'inline-block';
+
+function updateHeaderProj(){
+  const p = document.getElementById('rProjekt').value.trim() || 'XY | München';
+  const b = document.getElementById('rBaustelle').value.trim() || 'Baustelle XY';
+  document.getElementById('headerProj').textContent = p + ' — ' + b;
+}
+document.getElementById('rProjekt').addEventListener('input', updateHeaderProj);
+document.getElementById('rBaustelle').addEventListener('input', updateHeaderProj);
+updateHeaderProj();
+
+function setConnStatus(ok, text){
+  const el = document.getElementById('connStatus');
+  el.style.display = 'flex';
+  el.className = 'conn-status ' + (ok ? 'ok' : 'bad');
+  el.innerHTML = '<span class="dot"></span>' + text;
+}
+setConnStatus(true, 'Bereit — Fotos werden direkt in deine Fotogalerie gespeichert.');
+
+function updateSaveButtonState(){
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = false;
+  btn.textContent = 'Feststellung speichern';
+}
+updateSaveButtonState();
+
+async function saveToGallery(id){
+  const e = allEntries.find(x => x.id === id);
+  if(!e || !e.photoUrl) return;
+  try{
+    const res = await fetch(e.photoUrl);
+    const blob = await res.blob();
+    const filename = (e.gewerk || 'foto').replace(/[^a-z0-9äöüß]+/gi,'_') + '_' + (e.datum||'').replace(/\./g,'-') + '.jpg';
+    const file = new File([blob], filename, { type: 'image/jpeg' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: 'Foto sichern' });
+      return;
+    }
+  }catch(err){
+    if(err && err.name === 'AbortError') return; // Nutzer hat Teilen-Dialog abgebrochen
+    console.error('Teilen fehlgeschlagen, nutze Fallback', err);
+  }
+  // Fallback fuer Browser ohne Web-Share-API mit Dateien (z.B. aeltere Safari-Versionen):
+  // Bild direkt als Ziel-URL in neuem Tab oeffnen, dort per Long-Press/Teilen-Symbol sichern.
+  const win = window.open(e.photoUrl, '_blank');
+  if(!win){
+    alert('Pop-up blockiert. Bitte Pop-ups für diese Seite erlauben, oder das Bild in der Liste lange gedrückt halten.');
+  }
+}
+
+async function generateWordReport(){
+  if(allEntries.length === 0){ alert('Noch keine Feststellungen erfasst.'); return; }
+  const btn = document.getElementById('genWordBtn');
+  const hint = document.getElementById('genWordHint');
+  btn.disabled = true; btn.textContent = 'Erstelle Bericht …';
+
+  const payload = {
+    berichtskopf: {
+      projekt: document.getElementById('rProjekt').value,
+      baustelle: document.getElementById('rBaustelle').value,
+      kunde: document.getElementById('rKunde').value,
+      verfasser: document.getElementById('rVerfasser').value,
+      datum: document.getElementById('rDatum').value,
+      berichtsNr: document.getElementById('rBerichtsNr').value,
+      tempMin: document.getElementById('rTempMin').value,
+      tempMax: document.getElementById('rTempMax').value,
+      verteiler: document.getElementById('rVerteiler').value,
+      rahmentermine: document.getElementById('rRahmen').value
+    },
+    entries: allEntries
+  };
+
+  try{
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const errText = await res.text().catch(()=>'');
+      throw new Error('Server antwortete mit Fehler ' + res.status + (errText ? ': ' + errText : ''));
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : 'bericht.docx';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    hint.textContent = 'Fertig — "' + filename + '" wurde heruntergeladen.';
+  }catch(err){
+    console.error(err);
+    alert('Bericht konnte nicht erstellt werden: ' + (err && err.message ? err.message : err) + '\n\nAlternativ unten die Rohdaten herunterladen und im Chat bei Claude hochladen.');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Word-Bericht erstellen';
+  }
+}
+
+function exportForWordReport(){
+  const payload = {
+    berichtskopf: {
+      projekt: document.getElementById('rProjekt').value,
+      baustelle: document.getElementById('rBaustelle').value,
+      kunde: document.getElementById('rKunde').value,
+      verfasser: document.getElementById('rVerfasser').value,
+      datum: document.getElementById('rDatum').value,
+      berichtsNr: document.getElementById('rBerichtsNr').value,
+      tempMin: document.getElementById('rTempMin').value,
+      tempMax: document.getElementById('rTempMax').value,
+      verteiler: document.getElementById('rVerteiler').value,
+      rahmentermine: document.getElementById('rRahmen').value
+    },
+    entries: allEntries
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const ts = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'qs-rohdaten-fuer-claude_' + ts + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function importContinueFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const importedEntries = Array.isArray(data.entries) ? data.entries : [];
+
+    // Einträge zusammenführen (bereits vorhandene IDs bleiben unangetastet,
+    // neue kommen dazu) - so kann man mehrere Besichtigungen im Monat
+    // nacheinander in dieselbe Sammlung eintragen.
+    const map = new Map(allEntries.map(x => [x.id, x]));
+    importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
+    allEntries = Array.from(map.values());
+    renderRecent();
+
+    // Berichtskopf nur uebernehmen, wenn die Felder noch leer sind (eigene,
+    // bereits eingetragene Werte in dieser Sitzung nicht ueberschreiben)
+    if(data.berichtskopf){
+      const bk = data.berichtskopf;
+      const setIfEmpty = (id, val) => {
+        const el = document.getElementById(id);
+        if(el && !el.value.trim() && val) el.value = val;
+      };
+      setIfEmpty('rProjekt', bk.projekt);
+      setIfEmpty('rBaustelle', bk.baustelle);
+      setIfEmpty('rKunde', bk.kunde);
+      setIfEmpty('rVerfasser', bk.verfasser);
+      setIfEmpty('rBerichtsNr', bk.berichtsNr);
+      setIfEmpty('rVerteiler', bk.verteiler);
+      setIfEmpty('rRahmen', bk.rahmentermine);
+      updateHeaderProj();
+    }
+
+    setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
+    refreshReportViews();
+  }catch(err){
+    console.error(err);
+    alert('Datei konnte nicht gelesen werden: ' + (err && err.message ? err.message : err));
+  }
+  e.target.value = '';
+}
+
+let currentType = 'doku';
+let currentPhotoBlob = null;
+let currentPhotoPreviewDataUrl = null;
+
+function setType(t){
+  currentType = t;
+  document.querySelectorAll('.type-toggle button').forEach(b=>b.classList.toggle('on', b.dataset.type===t));
+  document.getElementById('veranlassungFields').style.display = (t==='veranlassung') ? 'block' : 'none';
+}
+
+function handleLogo(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    logoDataUrl = ev.target.result;
+    document.getElementById('logoPreview').src = logoDataUrl;
+    document.getElementById('logoPreview').style.display = 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handlePhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const originalCta = document.getElementById('photoPlaceholder').innerHTML;
+  document.getElementById('photoPlaceholder').innerHTML = '<div class="cta"><span class="big">Foto wird verarbeitet …</span></div>';
+  document.getElementById('photoPlaceholder').style.display = 'block';
+  document.getElementById('photoPreview').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxDim = 1280;
+      let w = img.width, h = img.height;
+      if (w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+      else if (h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      if(document.getElementById('fTimestamp').checked){
+        const now = new Date();
+        const ts = now.toLocaleDateString('de-DE') + '   ' + now.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+        const fontSize = Math.max(16, Math.round(w * 0.032));
+        ctx.font = fontSize + 'px monospace';
+        ctx.textBaseline = 'middle';
+        const paddingX = 10, paddingY = 7;
+        const textWidth = ctx.measureText(ts).width;
+        const boxW = textWidth + paddingX * 2;
+        const boxH = fontSize + paddingY * 2;
+        const boxX = w - boxW - 12;
+        const boxY = h - boxH - 12;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        ctx.fillStyle = '#FFD24D';
+        ctx.fillText(ts, boxX + paddingX, boxY + boxH / 2);
+      }
+
+      const previewDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      canvas.toBlob(function(blob){
+        if(!blob){
+          alert('Foto konnte nicht verarbeitet werden.');
+          document.getElementById('photoPlaceholder').innerHTML = originalCta;
+          return;
+        }
+        currentPhotoBlob = blob;
+        currentPhotoPreviewDataUrl = previewDataUrl;
+        document.getElementById('photoPreview').src = previewDataUrl;
+        document.getElementById('photoPreview').style.display = 'block';
+        document.getElementById('photoPlaceholder').style.display = 'none';
+        document.getElementById('photoPlaceholder').innerHTML = originalCta;
+      }, 'image/jpeg', 0.8);
+    };
+    img.onerror = function(){ alert('Foto konnte nicht gelesen werden.'); document.getElementById('photoPlaceholder').innerHTML = originalCta; };
+    img.src = ev.target.result;
+  };
+  reader.onerror = function(){ alert('Datei konnte nicht gelesen werden.'); document.getElementById('photoPlaceholder').innerHTML = originalCta; };
+  reader.readAsDataURL(file);
+}
+
+function switchTab(name){
+  document.getElementById('view-capture').classList.toggle('active', name==='capture');
+  document.getElementById('view-report').classList.toggle('active', name==='report');
+  document.getElementById('tab-capture').classList.toggle('active', name==='capture');
+  document.getElementById('tab-report').classList.toggle('active', name==='report');
+  if(name==='report') refreshReportViews();
+}
+
+async function saveEntry(){
+  const gewerk = document.getElementById('fGewerk').value.trim();
+  const ort = document.getElementById('fOrt').value.trim();
+  const arbeiten = document.getElementById('fArbeiten').value.trim();
+
+  if(!currentPhotoBlob || !currentPhotoPreviewDataUrl){ alert('Bitte zuerst ein Foto aufnehmen bzw. auswählen.'); return; }
+  if(!gewerk || !ort){ alert('Bitte Gewerk und Ort angeben.'); return; }
+
+  const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  const nowIso = new Date().toISOString().slice(0,10);
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Speichere …';
+
+  const entry = {
+    id: entryId, type: currentType, gewerk, ort, arbeiten,
+    bauteil: document.getElementById('fBauteil').value.trim(),
+    material: document.getElementById('fMaterial').value.trim(),
+    verantwortlich: document.getElementById('fVerantwortlich').value.trim(),
+    kuerzel: document.getElementById('fKuerzel').value.trim(),
+    datum: document.getElementById('fDatum').value,
+    datumISO: nowIso,
+    sortOrder: Date.now(),
+    photoUrl: currentPhotoPreviewDataUrl,
+    createdAt: Date.now()
+  };
+
+  allEntries.push(entry);
+  renderRecent();
+  resetForm();
+  btn.disabled = false;
+  updateSaveButtonState();
+
+  // Foto direkt zum Sichern in die Fotogalerie anbieten
+  saveToGallery(entryId);
+}
+
+function resetForm(){
+  document.getElementById('fGewerk').value='';
+  document.getElementById('fOrt').value='';
+  document.getElementById('fArbeiten').value='';
+  document.getElementById('fMaterial').value='';
+  document.getElementById('fBauteil').value='';
+  document.getElementById('fVerantwortlich').value='';
+  currentPhotoBlob = null;
+  currentPhotoPreviewDataUrl = null;
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('photoPlaceholder').style.display='block';
+  document.getElementById('photoInput').value='';
+  setType('doku');
+}
+
+function renderRecent(){
+  const container = document.getElementById('recentList');
+  if(allEntries.length===0){ container.innerHTML = '<div class="empty">Noch keine Einträge</div>'; return; }
+  const recent = allEntries.slice(-8).reverse();
+  container.innerHTML = recent.map(e => `
+    <div class="recent-item">
+      <img src="${e.photoUrl}">
+      <div class="meta">
+        <div class="t1">${e.type==='veranlassung' ? '<span class="badge rust">Veranlassung</span>' : ''}${escapeHtml(e.gewerk)}</div>
+        <div class="t2">${escapeHtml(e.ort)} · ${e.datum}</div>
+      </div>
+      <button class="btn-secondary small" onclick="saveToGallery('${e.id}')">Galerie</button>
+      <button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">✕</button>
+    </div>
+  `).join('');
+}
+
+function deleteEntry(id){
+  if(!confirm('Diese Feststellung löschen?')) return;
+  allEntries = allEntries.filter(e => e.id !== id);
+  renderRecent();
+  refreshReportViews();
+}
+
+function updateEntryFields(id, fields){
+  const e = allEntries.find(x=>x.id===id);
+  if(e) Object.assign(e, fields);
+}
+
+async function saveEntryEdit(id){
+  const e = allEntries.find(x=>x.id===id);
+  if(!e) return;
+  const fields = {
+    gewerk: document.getElementById('ed_gewerk_'+id).value.trim(),
+    ort: document.getElementById('ed_ort_'+id).value.trim(),
+    arbeiten: document.getElementById('ed_arbeiten_'+id).value.trim(),
+    material: document.getElementById('ed_material_'+id).value.trim(),
+    bauteil: document.getElementById('ed_bauteil_'+id).value.trim(),
+    datum: document.getElementById('ed_datum_'+id).value.trim(),
+    kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim()
+  };
+  if(e.type === 'veranlassung'){
+    const vEl = document.getElementById('ed_verantwortlich_'+id);
+    if(vEl) fields.verantwortlich = vEl.value.trim();
+  }
+  try{
+    await updateEntryFields(id, fields);
+    refreshReportViews();
+  }catch(err){
+    console.error(err);
+    alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+  }
+}
+
+async function persistGroupOrder(container){
+  const ids = Array.from(container.querySelectorAll('.edit-row')).map(r => r.dataset.id);
+  try{
+    for(let i=0;i<ids.length;i++){
+      await updateEntryFields(ids[i], { sortOrder: (i+1) * 1000 });
+    }
+    refreshReportViews();
+  }catch(err){
+    console.error(err);
+    alert('Reihenfolge speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+  }
+}
+
+function enableDragReorder(container){
+  let dragEl = null, startY = 0, startRects = [];
+
+  container.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.onpointerdown = (ev) => {
+      dragEl = handle.closest('.edit-row');
+      if(!dragEl) return;
+      startY = ev.clientY;
+      dragEl.classList.add('dragging');
+      dragEl.setPointerCapture(ev.pointerId);
+      startRects = Array.from(container.querySelectorAll('.edit-row')).map(r => ({ el: r, rect: r.getBoundingClientRect() }));
+
+      const onMove = (mv) => {
+        if(!dragEl) return;
+        const delta = mv.clientY - startY;
+        dragEl.style.transform = `translateY(${delta}px)`;
+        const dragRectInfo = startRects.find(r => r.el === dragEl);
+        const dragCenter = dragRectInfo.rect.top + dragRectInfo.rect.height/2 + delta;
+        for(const r of startRects){
+          if(r.el === dragEl) continue;
+          const otherCenter = r.rect.top + r.rect.height/2;
+          const isBelow = dragEl.compareDocumentPosition(r.el) & Node.DOCUMENT_POSITION_FOLLOWING;
+          if(isBelow && dragCenter > otherCenter){
+            container.insertBefore(dragEl, r.el.nextElementSibling);
+            startRects = Array.from(container.querySelectorAll('.edit-row')).map(x => ({ el: x, rect: x.getBoundingClientRect() }));
+            dragEl.style.transform = `translateY(${mv.clientY - startY}px)`;
+            break;
+          } else if(!isBelow && dragCenter < otherCenter){
+            container.insertBefore(dragEl, r.el);
+            startRects = Array.from(container.querySelectorAll('.edit-row')).map(x => ({ el: x, rect: x.getBoundingClientRect() }));
+            dragEl.style.transform = `translateY(${mv.clientY - startY}px)`;
+            break;
+          }
+        }
+      };
+
+      const onUp = (up) => {
+        if(dragEl){
+          dragEl.classList.remove('dragging');
+          dragEl.style.transform = '';
+          try{ dragEl.releasePointerCapture(up.pointerId); }catch(e){}
+          persistGroupOrder(container);
+        }
+        dragEl = null;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    };
+  });
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function parseSemicolonRows(text){
+  return text.split('\n').map(l=>l.trim()).filter(Boolean).map(l => l.split(';').map(p=>p.trim()));
+}
+function isoWeekLabel(dateStr){
+  const d = new Date(dateStr);
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const week = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay()+6)%7)) / 7);
+  return d.getUTCFullYear() + '-W' + String(week).padStart(2,'0');
+}
+
+function refreshReportViews(){
+  renderEditor();
+  renderReport();
+}
+
+function renderEditor(){
+  const doku = allEntries.filter(e=>e.type==='doku').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  const veranl = allEntries.filter(e=>e.type==='veranlassung').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  const build = (list) => list.map((e) => `
+    <div class="edit-row" data-id="${e.id}">
+      <div class="drag-handle" title="Ziehen zum Verschieben">⠿</div>
+      <div class="edit-thumb"><img src="${e.photoUrl}"></div>
+      <div class="edit-fields">
+        <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
+        <input type="text" id="ed_ort_${e.id}" value="${escapeHtml(e.ort)}" placeholder="Ort">
+        <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
+        <textarea id="ed_arbeiten_${e.id}" placeholder="Info">${escapeHtml(e.arbeiten||'')}</textarea>
+        <input type="text" id="ed_material_${e.id}" value="${escapeHtml(e.material||'')}" placeholder="Material">
+        ${e.type==='veranlassung' ? `<input type="text" id="ed_verantwortlich_${e.id}" value="${escapeHtml(e.verantwortlich||'')}" placeholder="Verantwortlichkeit">` : ''}
+        <div class="row2">
+          <input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="Datum">
+          <input type="text" id="ed_kuerzel_${e.id}" value="${escapeHtml(e.kuerzel||'')}" placeholder="Kürzel">
+        </div>
+        <div class="edit-actions">
+          <button class="btn-secondary small" onclick="saveEntryEdit('${e.id}')">Speichern</button>
+          <button class="del-btn" onclick="deleteEntry('${e.id}')">Löschen</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  const dokuContainer = document.getElementById('editorDoku');
+  const veranlContainer = document.getElementById('editorVeranl');
+  dokuContainer.innerHTML = doku.length ? build(doku) : '<div class="empty">Keine Einträge</div>';
+  veranlContainer.innerHTML = veranl.length ? build(veranl) : '<div class="empty">Keine Einträge</div>';
+  if(doku.length) enableDragReorder(dokuContainer);
+  if(veranl.length) enableDragReorder(veranlContainer);
+}
+
+function renderReport(){
+  const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}">` : `<div class="logo-placeholder"><div></div><div></div><div></div><div></div></div>`;
+
+  const projekt = document.getElementById('rProjekt').value || '—';
+  const baustelle = document.getElementById('rBaustelle').value || '—';
+  const kunde = document.getElementById('rKunde').value || '—';
+  const verfasser = document.getElementById('rVerfasser').value || '—';
+  const datum = document.getElementById('rDatum').value || '—';
+  const tempMin = document.getElementById('rTempMin').value.trim();
+  const tempMax = document.getElementById('rTempMax').value.trim();
+  const berichtsNr = document.getElementById('rBerichtsNr').value.trim() || '1';
+  const berichtsNrPadded = berichtsNr.padStart(3,'0');
+  const isoToday = new Date().toISOString().slice(2,10).replace(/-/g,'');
+  const autoDateiname = isoToday + '_' + escapeHtml(verfasser) + '-QS-Bautenstand_' + berichtsNrPadded + '.docx';
+  const dateiname = document.getElementById('rDateiname').value.trim() || autoDateiname;
+
+  const verteilerRows = parseSemicolonRows(document.getElementById('rVerteiler').value);
+  const rahmenRows = parseSemicolonRows(document.getElementById('rRahmen').value);
+
+  const doku = allEntries.filter(e=>e.type==='doku').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  const veranl = allEntries.filter(e=>e.type==='veranlassung').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+
+  const weekGroups = [];
+  doku.forEach((e, idx) => {
+    const wk = isoWeekLabel(e.datumISO || e.datum);
+    let grp = weekGroups.find(g => g.wk === wk);
+    if(!grp){ grp = { wk, startIdx: idx, endIdx: idx, firstDate: e.datum }; weekGroups.push(grp); }
+    grp.endIdx = idx;
+  });
+
+  const pages = [];
+  const toc = [];
+  let pageCounter = 2;
+
+  let rahmenBody = '';
+  if(rahmenRows.length > 0){
+    rahmenBody += `<h3 class="section">Rahmentermine</h3>
+      <table class="rahmen-table">
+        <tr><th>Name</th><th>Terminplan</th><th>Bautenstand [%]</th><th></th></tr>
+        ${rahmenRows.map(r => {
+          const [name='', termin='', stand='', status='im-termin'] = r;
+          return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(termin)}</td><td>${escapeHtml(stand)}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td></tr>`;
+        }).join('')}
+      </table>
+      <div class="legend">
+        <div class="row"><span class="sw" style="background:var(--green)"></span>Im Termin</div>
+        <div class="row"><span class="sw" style="background:var(--blue)"></span>Termin nicht kritisch</div>
+        <div class="row"><span class="sw" style="background:var(--orange)"></span>Termin +2 KW</div>
+        <div class="row"><span class="sw" style="background:var(--rust)"></span>Termin +4 KW</div>
+      </div>`;
+    toc.push({ title: 'Rahmentermine', page: pageCounter });
+    pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: rahmenBody });
+    pageCounter++;
+  }
+
+  let dokuBody = `<h3 class="section">Dokumentation</h3>`;
+  if(doku.length===0){
+    dokuBody += `<div class="empty">Keine Dokumentations-Einträge vorhanden.</div>`;
+  }else{
+    dokuBody += `<table class="doku-index"><tr><th style="width:70px">Nr.</th><th style="width:140px">Zeitraum</th><th>Zusammenfassung</th></tr>`;
+    weekGroups.forEach((g, gi) => {
+      const items = doku.slice(g.startIdx, g.endIdx+1);
+      const gewerke = [...new Set(items.map(e=>e.gewerk))].join(', ');
+      const range = g.startIdx+1 === g.endIdx+1 ? (g.startIdx+1) : (g.startIdx+1)+'-'+(g.endIdx+1);
+      dokuBody += `<tr><td>${range}</td><td>QS-Bericht ${String(gi+1).padStart(3,'0')} vom ${g.firstDate}</td><td>${escapeHtml(gewerke)}</td></tr>`;
+    });
+    dokuBody += `</table>`;
+
+    let lastDate = null;
+    doku.forEach((e, i) => {
+      if(e.datum !== lastDate){
+        lastDate = e.datum;
+        dokuBody += `<div class="day-line">${escapeHtml(e.datum)}</div>`;
+      }
+      dokuBody += `
+      <div class="entry">
+        <div>
+          <div class="num">${i+1}</div>
+          <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
+          <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
+          ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
+          ${e.arbeiten ? `<div class="txt-line">Info: ${escapeHtml(e.arbeiten)}</div>` : ''}
+          ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
+          <div class="stand-line">Stand:${e.datum}${e.kuerzel ? ' · ' + escapeHtml(e.kuerzel) : ''}</div>
+        </div>
+        <img src="${e.photoUrl}">
+      </div>`;
+    });
+  }
+  toc.push({ title: 'Dokumentation', page: pageCounter });
+  pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: dokuBody });
+  pageCounter++;
+
+  let veranlBody = `<h3 class="section">Veranlassungen</h3>`;
+  if(veranl.length===0){
+    veranlBody += `<div class="empty">Keine Veranlassungen vorhanden.</div>`;
+  }else{
+    veranl.forEach((e, i) => {
+      const letter = String.fromCharCode(65 + i);
+      veranlBody += `
+      <div class="entry">
+        <div>
+          <div class="num">${letter}</div>
+          <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
+          <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
+          ${e.arbeiten ? `<div class="txt-line">${escapeHtml(e.arbeiten)}</div>` : ''}
+          ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
+          <div class="txt-line">Verantwortlichkeit: ${escapeHtml(e.verantwortlich || '—')}</div>
+          <div class="stand-line">Stand: ${e.datum}${e.kuerzel ? ' · ' + escapeHtml(e.kuerzel) : ''}</div>
+        </div>
+        <img src="${e.photoUrl}">
+      </div>`;
+    });
+  }
+  toc.push({ title: 'Veranlassungen', page: pageCounter });
+  pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: veranlBody });
+  pageCounter++;
+
+  const totalPages = pageCounter - 1;
+  const witterung = (tempMin || tempMax) ? `Min. ${escapeHtml(tempMin||'—')} / Max. ${escapeHtml(tempMax||'—')}` : '';
+
+  const coverBody = `
+    <div class="cover-title">L E I S T U N G S F E S T E L L U N G&nbsp;&nbsp;|&nbsp;&nbsp;B A U T E N S T A N D</div>
+    <table class="meta-table">
+      <tr><td class="k">Thema</td><td>Bericht zur Leistungsfeststellung und Qualitätssicherung</td></tr>
+      <tr><td class="k">Verfasser</td><td>${escapeHtml(verfasser)}</td></tr>
+      <tr><td class="k">Berichts-Nr.</td><td>${berichtsNrPadded}</td></tr>
+      <tr><td class="k">Datum</td><td>${escapeHtml(datum)}</td></tr>
+      ${witterung ? `<tr><td class="k">Witterung</td><td>${witterung}</td></tr>` : ''}
+      <tr><td class="k">Seitenanzahl</td><td>${totalPages} Seiten</td></tr>
+      <tr><td class="k">Kunde</td><td>${escapeHtml(kunde)}</td></tr>
+    </table>
+    ${verteilerRows.length ? `
+    <table class="verteiler-table">
+      <tr><th>Name</th><th>Firma</th><th>Kürzel</th><th>E-Mail</th></tr>
+      ${verteilerRows.map(r => { const [name='',firma='',kuerzel='',email=''] = r; return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(firma)}</td><td>${escapeHtml(kuerzel)}</td><td>${escapeHtml(email)}</td></tr>`; }).join('')}
+    </table>` : ''}
+    <table class="meta-table" style="margin-top:6px"><tr><td class="k">Verteilung</td><td>per E-Mail</td></tr></table>
+    <h3 class="section" style="margin-top:22px">Inhaltsverzeichnis</h3>
+    ${toc.map(t => `<div class="toc-line"><span>${escapeHtml(t.title)}</span><span class="dots"></span><span>${t.page}</span></div>`).join('')}
+  `;
+
+  let html = `<div class="report-page">
+    <div class="rp-header">
+      <div class="titles"><div class="t1">${escapeHtml(projekt)}</div><div class="t2">${escapeHtml(baustelle)}</div></div>
+      <div class="logo-mark">${logoHtml}</div>
+    </div>
+    ${coverBody}
+    <div class="rp-footer"><span>${escapeHtml(dateiname)}</span><span>Seite 1 / ${totalPages}</span></div>
+  </div>`;
+
+  pages.forEach((p, i) => {
+    html += `<div class="report-page">
+      <div class="rp-header">
+        <div class="titles"><div class="t1">${escapeHtml(projekt)}</div><div class="t2">${escapeHtml(p.subtitle)}</div></div>
+        <div class="logo-mark">${logoHtml}</div>
+      </div>
+      ${p.body}
+      <div class="rp-footer"><span>${escapeHtml(dateiname)}</span><span>Seite ${i+2} / ${totalPages}</span></div>
+    </div>`;
+  });
+
+  document.getElementById('reportOutput').innerHTML = html;
+}
+
+// (kein Ordner-Support-Check mehr noetig - Speicherung laeuft ausschliesslich ueber Galerie + Export/Import)
+</script>
+
+</body>
+</html>
