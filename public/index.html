@@ -700,7 +700,7 @@ function handlePhoto(e){
     if(document.getElementById('fTimestamp').checked){
       const now = new Date();
       const ts = now.toLocaleDateString('de-DE') + '   ' + now.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
-      const fontSize = Math.max(16, Math.round(w * 0.032));
+      const fontSize = Math.max(20, Math.round(w * 0.040));
       ctx.font = fontSize + 'px monospace';
       ctx.textBaseline = 'middle';
       const textWidth = ctx.measureText(ts).width;
