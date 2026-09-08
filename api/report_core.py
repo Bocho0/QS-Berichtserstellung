@@ -131,14 +131,14 @@ def set_nr_cell(cell, nr, base_run):
     tcPr.append(valign)
     p = cell.paragraphs[0]
     p.paragraph_format.space_before = Pt(16)
-    # Ererbter Einzug aus der Vorlagenzeile (360 dxa) entfernen, damit die Zahl
-    # exakt an derselben horizontalen Position wie die Kopfzeile "Nr.:" beginnt.
-    p.paragraph_format.left_indent = Pt(0)
-    pPr = p._p.find(qn('w:pPr'))
-    if pPr is not None:
-        ind = pPr.find(qn('w:ind'))
-        if ind is not None:
-            pPr.remove(ind)
+    # Die Kopfzeile "Nr.:" nutzt die Formatvorlage "Listenabsatz", die selbst
+    # einen fest eingebauten Einzug von 720 dxa (0,5") mitbringt (in der
+    # Absatz-XML selbst nicht sichtbar, da nur geerbt). Die Datenzeilen nutzen
+    # dagegen "Normal" mit einem eigenen, davon abweichenden Einzug (360 dxa)
+    # - das erzeugte den Versatz. Hier wird der Einzug der Datenzeile exakt
+    # auf denselben Wert (720 dxa = 36pt) gesetzt, den die Kopfzeile durch
+    # ihre Formatvorlage bereits hat.
+    p.paragraph_format.left_indent = Pt(36)
     r = p.add_run(str(nr))
     set_run_font(r, base_run)
 
@@ -244,8 +244,78 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                 if spacing_el is not None:
                     spacing_el.set(qn('w:val'), '30')
                 if r.font.size:
-                    r.font.size = Pt(12)
+                    r.font.size = Pt(14)
             break
+
+    # Inhaltsverzeichnis auf dem Titelblatt einfügen. Da die tatsächliche
+    # Seitenaufteilung erst beim Öffnen in Word feststeht (abhängig von der
+    # Anzahl/Länge der Feststellungen), wird hier - genau wie bei der
+    # Seitenzahl - ein echtes Word-Feld (TOC) eingesetzt statt fester Werte.
+    # Es befüllt sich automatisch beim Öffnen (updateFields ist weiter unten
+    # bereits aktiviert); sollte Word das Feld nicht von selbst aktualisieren,
+    # genügt ein Rechtsklick darauf → "Felder aktualisieren".
+    def set_outline_level(paragraph, level):
+        pPr = paragraph._p.get_or_add_pPr()
+        old = pPr.find(qn('w:outlineLvl'))
+        if old is not None:
+            pPr.remove(old)
+        el = pPr.makeelement(qn('w:outlineLvl'), {})
+        el.set(qn('w:val'), str(level))
+        pPr.append(el)
+
+    anchor_p = None
+    pagebreak_p = None
+    heading_ref_rPr = None
+    for p in doc.paragraphs:
+        t = p.text.strip()
+        if t.startswith('Anlagen'):
+            anchor_p = p
+        if t in ('Rahmentermine:', 'Dokumentation:'):
+            set_outline_level(p, 0)
+            if t == 'Dokumentation:' and p.runs:
+                heading_ref_rPr = p.runs[0]._r.find(qn('w:rPr'))
+        if pagebreak_p is None:
+            for br in p._p.findall('.//' + qn('w:br')):
+                if br.get(qn('w:type')) == 'page':
+                    pagebreak_p = p
+                    break
+
+    if anchor_p is not None and pagebreak_p is not None:
+        ref_rpr_xml = (etree.tostring(heading_ref_rPr, encoding='unicode')
+                       if heading_ref_rPr is not None
+                       else f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>')
+
+        toc_heading = parse_xml(f'''<w:p xmlns:w="{W}">
+          <w:pPr><w:spacing w:before="360" w:after="160"/></w:pPr>
+          <w:r>{ref_rpr_xml}<w:t>Inhaltsverzeichnis</w:t></w:r>
+        </w:p>''')
+
+        toc_field = parse_xml(f'''<w:p xmlns:w="{W}">
+          <w:pPr><w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr></w:pPr>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:noProof/></w:rPr>
+            <w:fldChar w:fldCharType="begin" w:dirty="true"/>
+          </w:r>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>
+            <w:instrText xml:space="preserve"> TOC \\o "1-1" \\h \\z \\u </w:instrText>
+          </w:r>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:noProof/></w:rPr>
+            <w:fldChar w:fldCharType="separate"/>
+          </w:r>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:i/><w:noProof/></w:rPr>
+            <w:t>Wird beim Öffnen automatisch befüllt (ggf. Rechtsklick → Felder aktualisieren).</w:t>
+          </w:r>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:noProof/></w:rPr>
+            <w:fldChar w:fldCharType="end"/>
+          </w:r>
+        </w:p>''')
+
+        pagebreak_p._p.addprevious(toc_heading)
+        pagebreak_p._p.addprevious(toc_field)
 
     # Fußzeile: Dateiname (links) und Seitenzahl (rechts) auf eine gemeinsame
     # Zeile bringen. Beides lag bisher in zwei getrennten Absätzen unter-
