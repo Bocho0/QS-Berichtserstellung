@@ -128,9 +128,10 @@ def set_nr_cell(cell, nr, base_run):
     if old_valign is not None:
         tcPr.remove(old_valign)
     valign = tcPr.makeelement(qn('w:vAlign'), {})
-    valign.set(qn('w:val'), 'center')
+    valign.set(qn('w:val'), 'top')
     tcPr.append(valign)
     p = cell.paragraphs[0]
+    p.paragraph_format.space_before = Pt(16)
     r = p.add_run(str(nr))
     set_run_font(r, base_run)
 
