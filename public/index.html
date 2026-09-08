@@ -125,7 +125,7 @@
   .entry{ display:grid; grid-template-columns:1fr 260px; gap:16px; padding:16px 0; border-bottom:1px solid var(--concrete-2); align-items:start; }
   .entry .num{ font-weight:700; }
   .entry .txt-line{ margin-bottom:2px; }
-  .entry img{ width:260px; height:175px; object-fit:cover; border-radius:2px; border:1px solid var(--line); }
+  .entry img{ width:260px; height:175px; object-fit:contain; background:var(--concrete); border-radius:2px; border:1px solid var(--line); }
   .stand-line{ margin-top:6px; }
   details.help{ margin-top:8px; }
   details.help summary{ font-size:12px; color:var(--muted); cursor:pointer; }
@@ -703,16 +703,17 @@ function handlePhoto(e){
       const fontSize = Math.max(16, Math.round(w * 0.032));
       ctx.font = fontSize + 'px monospace';
       ctx.textBaseline = 'middle';
-      const paddingX = 10, paddingY = 7;
       const textWidth = ctx.measureText(ts).width;
-      const boxW = textWidth + paddingX * 2;
-      const boxH = fontSize + paddingY * 2;
-      const boxX = w - boxW - 12;
-      const boxY = h - boxH - 12;
-      ctx.fillStyle = 'rgba(255,255,255,0.78)';
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.fillStyle = '#464646';
-      ctx.fillText(ts, boxX + paddingX, boxY + boxH / 2);
+      const textX = w - textWidth - 16;
+      const textY = h - fontSize / 2 - 12;
+      // Dünner dunkler Umriss statt Textfeld, damit Gelb auf jedem Fotountergrund lesbar bleibt.
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+      ctx.lineWidth = Math.max(2, Math.round(fontSize * 0.12));
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.strokeText(ts, textX, textY);
+      ctx.fillStyle = '#FFD24D';
+      ctx.fillText(ts, textX, textY);
     }
 
     const previewDataUrl = canvas.toDataURL('image/jpeg', 0.8);
