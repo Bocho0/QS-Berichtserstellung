@@ -9,6 +9,8 @@ import docx
 from docx.shared import Pt, Emu
 from docx.oxml.ns import qn
 from docx.oxml import parse_xml
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from lxml import etree
 from PIL import Image
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -121,8 +123,14 @@ def build_image_cell(cell, photo_path):
 
 def set_nr_cell(cell, nr, base_run):
     clear_cell(cell)
+    tcPr = cell._tc.get_or_add_tcPr()
+    old_valign = tcPr.find(qn('w:vAlign'))
+    if old_valign is not None:
+        tcPr.remove(old_valign)
+    valign = tcPr.makeelement(qn('w:vAlign'), {})
+    valign.set(qn('w:val'), 'center')
+    tcPr.append(valign)
     p = cell.paragraphs[0]
-    p.paragraph_format.space_before = Pt(16)
     r = p.add_run(str(nr))
     set_run_font(r, base_run)
 
@@ -156,10 +164,19 @@ def set_seitenanzahl_field(doc):
             full_after = ''.join(r.text for r in non_ul_runs)
             m = re.match(r'^[\t ]*', full_after)
             prefix = m.group(0) if m else ''
+            # Formatierung von einem bereits korrekt formatierten Datentext im
+            # selben Absatz uebernehmen (z. B. " Seiten"), damit die eingefuegte
+            # Zahl exakt dieselbe Schriftart/-groesse wie der uebrige Text nutzt,
+            # statt eine eigene Schriftart fest zu verdrahten.
+            ref_run = non_ul_runs[-1]
+            ref_rPr = ref_run._r.find(qn('w:rPr'))
+            if ref_rPr is not None:
+                rpr_xml = etree.tostring(ref_rPr, encoding='unicode')
+            else:
+                rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>'
             non_ul_runs[0].text = prefix
             for r in non_ul_runs[1:]:
                 r.text = ''
-            rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>'
             def make_run(inner):
                 return parse_xml(f'<w:r xmlns:w="{W}">{rpr_xml}{inner}</w:r>')
             anchor = non_ul_runs[0]._r
@@ -247,6 +264,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         if trailing_paragraphs:
             tp = trailing_paragraphs[-1]
             tp.text = ''
+            tp.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
             r = tp.add_run(dateiname_val)
             r.font.name = 'Barlow'
             r.font.size = Pt(9)
