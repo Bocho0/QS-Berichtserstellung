@@ -9,7 +9,6 @@ import docx
 from docx.shared import Pt, Emu
 from docx.oxml.ns import qn
 from docx.oxml import parse_xml
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from lxml import etree
 from PIL import Image
 
@@ -132,6 +131,14 @@ def set_nr_cell(cell, nr, base_run):
     tcPr.append(valign)
     p = cell.paragraphs[0]
     p.paragraph_format.space_before = Pt(16)
+    # Ererbter Einzug aus der Vorlagenzeile (360 dxa) entfernen, damit die Zahl
+    # exakt an derselben horizontalen Position wie die Kopfzeile "Nr.:" beginnt.
+    p.paragraph_format.left_indent = Pt(0)
+    pPr = p._p.find(qn('w:pPr'))
+    if pPr is not None:
+        ind = pPr.find(qn('w:ind'))
+        if ind is not None:
+            pPr.remove(ind)
     r = p.add_run(str(nr))
     set_run_font(r, base_run)
 
@@ -240,12 +247,21 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                     r.font.size = Pt(12)
             break
 
-    # Fußzeile: Gesamtseitenzahl + Dateiname ergänzen (Seitenzahl-Feld war
-    # schon vorhanden)
+    # Fußzeile: Dateiname (links) und Seitenzahl (rechts) auf eine gemeinsame
+    # Zeile bringen. Beides lag bisher in zwei getrennten Absätzen unter-
+    # einander - dafür wird hier eine randlose 2-Spalten-Tabelle aufgebaut,
+    # die garantiert beide Angaben auf derselben Höhe zeigt. Das bestehende
+    # Seitenzahl-Feld (PAGE/NUMPAGES) wird dabei unverändert weiterverwendet,
+    # nur in die rechte Zelle verschoben.
     ftr = doc.sections[0].footer
     sdt = ftr._element.find(f'.//{w("sdt")}')
+    dateiname_val = bk.get('dateiname') or (
+        (bk.get('datum', '').replace('.', '') or 'bericht') + '_' +
+        (bk.get('verfasser', '') or 'QS') + '-QS-Bautenstand_' +
+        str(bk.get('berichtsNr', '1')).zfill(3) + '.docx')
     if sdt is not None:
-        sdt_paragraphs = sdt.findall(f'.//{w("p")}')
+        sdt_content = sdt.find(qn('w:sdtContent'))
+        sdt_paragraphs = sdt_content.findall(qn('w:p')) if sdt_content is not None else []
         if sdt_paragraphs:
             target_p = sdt_paragraphs[-1]
             rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
@@ -257,18 +273,70 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
             target_p.append(make_run('<w:fldChar w:fldCharType="separate"/>'))
             target_p.append(make_run('<w:t>1</w:t>'))
             target_p.append(make_run('<w:fldChar w:fldCharType="end"/>'))
-        trailing_paragraphs = [p for p in ftr.paragraphs if p._p.getparent() is ftr._element]
-        dateiname_val = bk.get('dateiname') or (
-            (bk.get('datum', '').replace('.', '') or 'bericht') + '_' +
-            (bk.get('verfasser', '') or 'QS') + '-QS-Bautenstand_' +
-            str(bk.get('berichtsNr', '1')).zfill(3) + '.docx')
-        if trailing_paragraphs:
-            tp = trailing_paragraphs[-1]
-            tp.text = ''
-            tp.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            r = tp.add_run(dateiname_val)
-            r.font.name = 'Barlow'
-            r.font.size = Pt(9)
+            # Die leere erste Zeile innerhalb der Seitenzahl-Steuerelements
+            # entfernen, damit die rechte Zelle nachher nur EINE Zeile hoch
+            # ist (sonst wuerde die Tabellenzeile hoeher als die linke Zelle
+            # und Dateiname/Seitenzahl liegen wieder auf unterschiedlicher
+            # Hoehe).
+            for extra_p in sdt_paragraphs[:-1]:
+                sdt_content.remove(extra_p)
+
+        # Alte, separate Fußzeilen-Absätze außerhalb des Seitenzahl-Steuer-
+        # elements entfernen - der Dateiname zieht stattdessen gleich in die
+        # neue Tabelle unten.
+        for p_el in list(ftr._element.findall(qn('w:p'))):
+            ftr._element.remove(p_el)
+
+        sec = doc.sections[0]
+        avail_dxa = sec.page_width.twips - sec.left_margin.twips - sec.right_margin.twips
+        left_dxa = int(avail_dxa * 0.65)
+        right_dxa = avail_dxa - left_dxa
+
+        sdt.getparent().remove(sdt)
+
+        tbl_xml = f'''<w:tbl xmlns:w="{W}">
+          <w:tblPr>
+            <w:tblW w:w="{avail_dxa}" w:type="dxa"/>
+            <w:tblLayout w:type="fixed"/>
+            <w:tblBorders>
+              <w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+              <w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+              <w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+              <w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+              <w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+              <w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+            </w:tblBorders>
+            <w:tblCellMar>
+              <w:top w:w="0" w:type="dxa"/>
+              <w:left w:w="0" w:type="dxa"/>
+              <w:bottom w:w="0" w:type="dxa"/>
+              <w:right w:w="0" w:type="dxa"/>
+            </w:tblCellMar>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="{left_dxa}"/>
+            <w:gridCol w:w="{right_dxa}"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="{left_dxa}" w:type="dxa"/></w:tcPr>
+              <w:p>
+                <w:pPr><w:jc w:val="left"/></w:pPr>
+                <w:r>
+                  <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>
+                  <w:t xml:space="preserve">{dateiname_val}</w:t>
+                </w:r>
+              </w:p>
+            </w:tc>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="{right_dxa}" w:type="dxa"/></w:tcPr>
+            </w:tc>
+          </w:tr>
+        </w:tbl>'''
+        tbl = parse_xml(tbl_xml)
+        right_tc = tbl.findall(qn('w:tr') + '/' + qn('w:tc'))[1]
+        right_tc.append(sdt)
+        ftr._element.append(tbl)
 
     # Spaltenbreiten-Korrektur (Nr.-Spalte / Bautenstand-Spalte)
     try:
