@@ -71,6 +71,10 @@
   .badge.rust{ background:var(--rust); color:var(--white); }
   .del-btn{ background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px 8px; }
   .empty{ color:var(--muted); font-size:13px; text-align:center; padding:18px 0; }
+  .verlauf-line{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dotted var(--concrete-2); font-size:13px; }
+  .verlauf-line .vtxt{ color:var(--ink); }
+  .verlauf-line .vtxt b{ color:var(--charcoal); }
+  .verlauf-line button{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; line-height:1; padding:2px 6px; }
   .conn-status{ display:none; align-items:center; gap:8px; font-size:12px; font-weight:600; padding:9px 12px; border-radius:var(--radius); margin-bottom:14px; }
   .conn-status .dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
   .conn-status.ok{ background:#E7F3E8; color:#2A6B33; }
@@ -93,6 +97,10 @@
   .edit-row{ align-items:flex-start; }
   .drag-handle{ width:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--muted); cursor:grab; touch-action:none; user-select:none; padding-top:14px; }
   .edit-row.dragging{ opacity:0.85; box-shadow:0 6px 16px rgba(0,0,0,0.18); background:var(--white); position:relative; z-index:5; }
+  .order-btns{ display:flex; flex-direction:column; gap:4px; flex-shrink:0; padding-top:2px; }
+  .order-btn{ width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1; border:1px solid var(--line); border-radius:4px; background:var(--white); color:var(--charcoal); cursor:pointer; touch-action:manipulation; }
+  .order-btn:active{ background:var(--concrete); }
+  .order-btn:disabled{ opacity:0.3; cursor:default; }
   .edit-actions{ display:flex; gap:8px; align-items:center; margin-top:2px; }
   .report-page{ background:var(--white); border:1px solid var(--line); padding:34px 30px 46px; margin-bottom:16px; position:relative; min-height:400px; font-size:12.5px; color:#000; }
   .rp-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:20px; }
@@ -220,12 +228,12 @@
     <div class="card no-print">
       <h2>Berichtskopf</h2>
       <div class="report-meta">
-        <div class="full"><label>Projekt / Baustelle</label><input type="text" id="rProjekt" value="XY | München"></div>
-        <div><label>Baustellenbezeichnung</label><input type="text" id="rBaustelle" value="Baustelle XY"></div>
+        <div class="full"><label>Projekt / Baustelle</label><input type="text" id="rProjekt" placeholder="z. B. XY | München"></div>
+        <div><label>Baustellenbezeichnung</label><input type="text" id="rBaustelle" placeholder="z. B. Baustelle XY"></div>
         <div><label>Kunde</label><input type="text" id="rKunde" placeholder="Kundenname"></div>
         <div><label>Verfasser (Kürzel)</label><input type="text" id="rVerfasser" placeholder="z. B. NFM"></div>
         <div><label>Datum Bericht</label><input type="text" id="rDatum"></div>
-        <div><label>Berichts-Nr.</label><input type="number" id="rBerichtsNr" value="1" min="1"></div>
+        <div><label>Berichts-Nr.</label><input type="number" id="rBerichtsNr" placeholder="z. B. 1" min="1"></div>
         <div><label>Witterung Min.</label><input type="text" id="rTempMin" placeholder="z. B. 16°C"></div>
         <div><label>Witterung Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22°C"></div>
         <div class="full"><label>Dateiname (Fußzeile)</label><input type="text" id="rDateiname" placeholder="z. B. 260731_NFM-QS-Bautenstand_005.docx"></div>
@@ -243,6 +251,9 @@
       <details class="help"><summary>Format-Beispiel &amp; Status-Werte</summary><div class="ex">Rohbau; 03.03.2026 - 30.10.2026; 50%; im-termin
 Huelle; 30.11.2026 - 09.07.2027; 0%; nicht-kritisch
 Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
+
+      <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
+      <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
     </div>
 
     <div class="card no-print">
@@ -271,7 +282,7 @@ Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
 
       <details class="help" style="margin-top:14px">
         <summary>Sammlung vollständig abschließen (Zwischenspeicher leeren)</summary>
-        <div class="ex">Löscht alle aktuell erfassten Feststellungen aus dem Zwischenspeicher dieses Geräts, z. B. wenn der Bericht bereits anderweitig fertiggestellt wurde. Nicht nötig nach "Word-Bericht erstellen" — das leert den Zwischenspeicher automatisch.</div>
+        <div class="ex">Löscht alle aktuell erfassten Feststellungen sowie die Deckblatt-/Rahmentermin-Angaben aus dem Zwischenspeicher dieses Geräts, z. B. wenn der Bericht bereits anderweitig fertiggestellt wurde. Nicht nötig nach "Word-Bericht erstellen" — das leert den Zwischenspeicher automatisch.</div>
         <button class="btn-secondary small" style="margin-top:8px" onclick="finishCollection()">Sammlung abschließen</button>
       </details>
     </div>
@@ -295,6 +306,7 @@ Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
 
 <script>
 let allEntries = [];
+let verlaufEntries = [];
 let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEUAAABFCAMAAAArU9sbAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAGnUExURf////7+/tvb25mZmZGRkY+Pj5ycnOjo6KysrJCQkMvLy/39/ZeXl0REREVFRTk5OcXFxcDAwFFRUUFBQWFhYczMzI6OjkZGRjs7O7u7u8HBwVJSUkJCQmBgYEdHR0lJSUhISF9fX4mJiYyMjIqKiouLi1xcXI2NjXV1dYODgz8/P/n5+cLCwjw8PPj4+IGBgT4+Pjo6OvX19b+/v/v7+4WFhUpKSr29va+vr9XV1e/v79zc3N7e3vPz80NDQ9bW1qmpqZ6enjMzMzIyMra2tqKiorq6uqGhoaioqFNTU05OTvz8/Kenp62trWdnZ66uroKCgoSEhIeHh/f39/b29vDw8H5+fmhoaJ+fnz09Pbm5ucrKypaWljQ0NMfHx0tLS/T09Ly8vDc3N2NjY9PT09HR0eTk5Onp6dnZ2YiIiLCwsPHx8e7u7uzs7MjIyICAgN/f339/f3t7e6SkpJKSksPDw8/Pz7e3t0BAQGpqaqqqqqWlpfLy8ri4uPr6+mVlZZubm5iYmJWVlX19fU1NTV5eXllZWdjY2Orq6uHh4ZqampOTk76+vrsXhk4AAAAJcEhZcwAAFxEAABcRAcom8z8AAANnSURBVFhH3ZjpV1JBFMDvCzD1BWoYICIPASMhFU1xKyst06i0tAVbUCvN1GxfbLOibPujOzODvJnLvIX0Q6efXzhzr78zc99s7wGAYgZQcKsAzdjncBriqtpPJdU4oFPjrFUA1ANujzF19cTScNAkx9t4CED1efzGBJpIh4PNJjmhltq9tYS1csLIguOapkUES7jVFY3Fi39tlFj8sFuweOIJTM2REG/R2tgT5VHak4IllMIZAEc7rCydXWm/v5uz9OAMgGOiJYrjAL19oUwm2b9by0BfPN4+SH7atGRiOC5g0yLrC4ddi6S6HHYtdvoiedJB0RLfaVeGho9zDJ+gycQycpIPME6l5dVNnR5Nc4yd0VdAkg8wvGH5iFJnO/ilFhivYDXq1d2VRe/LuW53EfKfvGWnnYM0y6qbmtCaKZPNGY9oYe08k+fJs5NUNzt4oZpyceJSSLC4iwGOqahXPiKOPrIz6JaQihMA6gPyEemkppHlr+auejldqeXKTA9i9uq1SvsSuX6jCuNoFKtrbfGP5MpIu8X5YsNihG1LzNQyRywNppbWmwDqrQAei07H7SCx3MkHcrm6eewAWBjL5Rbv3gOA+z6XAT5fLLZEkpcdvoQrKtmlHqzEfPGHq7hZQAF9uqqQFWJFlCzp6//J6pqEIcraPBt2Dw5zrNOqP5rekNBF2dh4TFKWfE9wXOfps3UA9XkO7+wco/S0f5E3yalreQmgJkzn7ivysOncNYLNXbvryAh+TaeTZdA1vUDqwiyvcUISnWqRN1ObiGq2e9PVyHbvtzhlc2BF2L0zbUoWoXZOkx1Tt4Te4ZQs9FvePLJ0331PqsssszgDoMHyLvWBngEV3Q4lJwmz6NW1YZGcJOw8mtNHZGmRjai3HVXX0iIbUbEvlVgkfWHndBP5xSySXU08p8MftxyYT40jQnXdn3GGY+uL8Dbh1wrlkNcWbr74cbxQKOTRWxZ+j/N4aDNXF1mKeJcyhLcYYNEXwuJ4qS5GKd6vpf0lks/ICH/b1i04yNDCNe92nnTXdynL670ly8gPHGUsk+u54azjYPNlBjdzGK4jDsO5W8JwHXHYtOxNX/4pi2Tf5bBr2XVfyPeXyApuFgiS7y9eM4uy/dP1y/kbNwsoU06XKyG513HoH5cMsUr5Ax5gj6pG+yeiAAAAAElFTkSuQmCC"; // Standardlogo (Datei-Upload überschreibt dies)
 
 // ===================== LOKALE ZWISCHENSPEICHERUNG (IndexedDB) =====================
@@ -304,7 +316,7 @@ let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEUAAABFCAMAAAA
 // erfolgreich erstellt/heruntergeladen wurde oder (b) die Sammlung über den
 // Button "Sammlung abschließen" bewusst zurückgesetzt wird.
 const IDB_NAME = 'qsBautenstandDB';
-const IDB_VERSION = 1;
+const IDB_VERSION = 2;
 let idbPromise = null;
 
 function openIdb(){
@@ -315,6 +327,7 @@ function openIdb(){
     req.onupgradeneeded = (ev) => {
       const db = ev.target.result;
       if(!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath: 'id' });
+      if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -370,8 +383,103 @@ async function idbClearEntries(){
   }catch(err){ console.error('Leeren des Zwischenspeichers fehlgeschlagen:', err); }
 }
 
+// --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
+// wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
+// Angaben nicht verwirft.
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
+
+async function idbPutMeta(key, value){
+  try{
+    const db = await openIdb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('meta', 'readwrite');
+      tx.objectStore('meta').put({ key, value });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(err){ console.error('Zwischenspeichern (Berichtskopf) fehlgeschlagen:', err); }
+}
+
+async function idbGetMeta(key){
+  try{
+    const db = await openIdb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('meta', 'readonly');
+      const req = tx.objectStore('meta').get(key);
+      req.onsuccess = () => resolve(req.result ? req.result.value : null);
+      req.onerror = () => reject(req.error);
+    });
+  }catch(err){ console.error('Lesen (Berichtskopf) fehlgeschlagen:', err); return null; }
+}
+
+async function idbClearMeta(){
+  try{
+    const db = await openIdb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('meta', 'readwrite');
+      tx.objectStore('meta').clear();
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(err){ console.error('Leeren (Berichtskopf) fehlgeschlagen:', err); }
+}
+
+async function idbDeleteMetaKey(key){
+  try{
+    const db = await openIdb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('meta', 'readwrite');
+      tx.objectStore('meta').delete(key);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(err){ console.error('Leeren (' + key + ') fehlgeschlagen:', err); }
+}
+
+let berichtskopfSaveTimer = null;
+function scheduleBerichtskopfSave(){
+  clearTimeout(berichtskopfSaveTimer);
+  berichtskopfSaveTimer = setTimeout(() => {
+    const obj = {};
+    BERICHTSKOPF_FIELD_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) obj[id] = el.value;
+    });
+    idbPutMeta('berichtskopf', obj);
+  }, 400);
+}
+
+async function restoreBerichtskopfFromIdb(){
+  const obj = await idbGetMeta('berichtskopf');
+  if(!obj) return;
+  let restoredAny = false;
+  BERICHTSKOPF_FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    // Beim Wiederherstellen nach einem Neuladen gewinnt immer der gespeicherte
+    // Wert (auch wenn das Feld gerade einen nicht-leeren HTML-Standardwert wie
+    // "XY | München" zeigt) - anders als beim JSON-Import, wo eigene, bereits
+    // eingetippte Werte nicht überschrieben werden sollen.
+    if(el && obj[id] !== undefined && obj[id] !== null){
+      el.value = obj[id];
+      restoredAny = true;
+    }
+  });
+  if(restoredAny) updateHeaderProj();
+}
+
+async function idbClearAll(){
+  await idbClearEntries();
+  await idbClearMeta();
+}
+
 async function restoreFromIdb(){
   const stored = await idbGetAllEntries();
+  await restoreBerichtskopfFromIdb();
+  const storedVerlauf = await idbGetMeta('verlauf');
+  if(Array.isArray(storedVerlauf) && storedVerlauf.length){
+    verlaufEntries = storedVerlauf;
+    renderVerlauf();
+  }
   if(stored.length === 0) return;
   const map = new Map(allEntries.map(x => [x.id, x]));
   stored.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
@@ -382,10 +490,12 @@ async function restoreFromIdb(){
 }
 
 async function finishCollection(){
-  if(!confirm('Sammlung wirklich vollständig abschließen? Alle ' + allEntries.length + ' erfassten Feststellungen werden aus dem Zwischenspeicher dieses Geräts gelöscht (sofern nicht vorher als .json gesichert).')) return;
-  await idbClearEntries();
+  if(!confirm('Sammlung wirklich vollständig abschließen? Alle ' + allEntries.length + ' erfassten Feststellungen, die Deckblatt-/Rahmentermin-Angaben sowie der Berichts-Verlauf werden aus dem Zwischenspeicher dieses Geräts gelöscht (sofern nicht vorher als .json gesichert).')) return;
+  await idbClearAll();
   allEntries = [];
+  verlaufEntries = [];
   renderRecent();
+  renderVerlauf();
   refreshReportViews();
   setConnStatus(true, 'Sammlung abgeschlossen — Zwischenspeicher wurde geleert. Bereit für eine neue Begehung.');
 }
@@ -424,6 +534,12 @@ updateSaveButtonState();
 // Geräts noch Feststellungen aus einer nicht abgeschlossenen Sitzung liegen
 // (z. B. weil das Tablet zwischendurch geschlossen/neu geladen wurde).
 restoreFromIdb();
+
+// Berichtskopf-Felder bei jeder Eingabe automatisch zwischenspeichern
+BERICHTSKOPF_FIELD_IDS.forEach(id => {
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', scheduleBerichtskopfSave);
+});
 
 async function saveToGallery(id){
   const e = allEntries.find(x => x.id === id);
@@ -468,7 +584,8 @@ async function generateWordReport(){
       verteiler: document.getElementById('rVerteiler').value,
       rahmentermine: document.getElementById('rRahmen').value
     },
-    entries: allEntries
+    entries: allEntries,
+    verlauf: verlaufEntries
   };
 
   // Vercel begrenzt Anfrage UND Antwort von Functions hart auf 4,5 MB - bei
@@ -505,10 +622,13 @@ async function generateWordReport(){
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     hint.textContent = 'Fertig — "' + filename + '" wurde heruntergeladen.';
-    // Bericht ist erfolgreich heruntergeladen: Zwischenspeicher dieses Geräts
-    // leeren, damit beim nächsten Öffnen der App nicht wieder derselbe
-    // (bereits abgeschlossene) Bericht auftaucht.
+    // Bericht ist erfolgreich heruntergeladen: Feststellungen und Deckblatt-
+    // Angaben aus dem Zwischenspeicher leeren, damit beim nächsten Öffnen der
+    // App nicht wieder derselbe (bereits abgeschlossene) Bericht auftaucht.
+    // Der Berichts-Verlauf bleibt bewusst erhalten - der begleitet die ganze
+    // Berichtsreihe weiter.
     await idbClearEntries();
+    await idbDeleteMetaKey('berichtskopf');
   }catch(err){
     console.error(err);
     alert('Bericht konnte nicht erstellt werden: ' + (err && err.message ? err.message : err) + '\n\nAlternativ unten die Rohdaten herunterladen und im Chat bei Claude hochladen.');
@@ -531,7 +651,8 @@ function exportForWordReport(){
       verteiler: document.getElementById('rVerteiler').value,
       rahmentermine: document.getElementById('rRahmen').value
     },
-    entries: allEntries
+    entries: allEntries,
+    verlauf: verlaufEntries
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -552,20 +673,62 @@ async function importContinueFile(e){
     const text = await file.text();
     const data = JSON.parse(text);
     const importedEntries = Array.isArray(data.entries) ? data.entries : [];
+    const importedVerlauf = Array.isArray(data.verlauf) ? data.verlauf : [];
+    const bk = data.berichtskopf || {};
 
-    // Einträge zusammenführen (bereits vorhandene IDs bleiben unangetastet,
-    // neue kommen dazu) - so kann man mehrere Besichtigungen im Monat
-    // nacheinander in dieselbe Sammlung eintragen.
-    const map = new Map(allEntries.map(x => [x.id, x]));
-    importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
-    allEntries = Array.from(map.values());
-    renderRecent();
-    importedEntries.forEach(x => idbPutEntry(x));
+    const berichtsNrEl = document.getElementById('rBerichtsNr');
+    // Erkennung: neuer Bericht in einer Berichtsreihe (Berichts-Nr.-Feld noch
+    // leer, Datei bringt eine eigene Berichts-Nr. mit) vs. Fortsetzung
+    // desselben Berichts (z. B. zweiter Termin derselben Begehung).
+    const isNewReportInReihe = !berichtsNrEl.value.trim() && !!(bk.berichtsNr || '').toString().trim();
+
+    // Verlauf aus der Datei immer mit uebernehmen (Kette darf ueber mehrere
+    // Berichte hinweg mitwachsen), unabhaengig vom Fall unten.
+    importedVerlauf.forEach(v => {
+      if(!verlaufEntries.some(x => x.berichtNr === v.berichtNr && x.datum === v.datum)) verlaufEntries.push(v);
+    });
+
+    if(isNewReportInReihe){
+      // Neuer Bericht in der Reihe: Die Feststellungen aus der Datei gehören
+      // zum VORHERIGEN, bereits abgeschlossenen Bericht und werden deshalb
+      // NICHT als bearbeitbare Einzeleinträge übernommen - stattdessen nur
+      // als kurze Verlaufszeile über den neuen Feststellungen festgehalten.
+      // Die Berichts-Nr. wird automatisch weitergezählt.
+      const oldNr = parseInt(bk.berichtsNr, 10);
+      const newNr = isNaN(oldNr) ? '' : String(oldNr + 1);
+      if(newNr) berichtsNrEl.value = newNr;
+
+      if(importedEntries.length > 0){
+        const gewerke = [...new Set(importedEntries.map(x => (x.gewerk||'').trim()).filter(Boolean))];
+        verlaufEntries.push({
+          id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          berichtNr: (bk.berichtsNr || '').toString(),
+          datum: bk.datum || '',
+          anzahl: importedEntries.length,
+          gewerke: gewerke.join(', ')
+        });
+      }
+      renderVerlauf();
+      idbPutMeta('verlauf', verlaufEntries);
+
+      setConnStatus(true, 'Neuer Bericht (Nr. ' + (newNr || '?') + ') angelegt — ' + importedEntries.length + ' Feststellungen aus Bericht ' + (bk.berichtsNr || '?') + ' als Kurzdarstellung im Verlauf übernommen.');
+    } else {
+      // Gleicher Bericht wird fortgesetzt: Einträge wie bisher zusammenführen
+      // (bereits vorhandene IDs bleiben unangetastet, neue kommen dazu).
+      const map = new Map(allEntries.map(x => [x.id, x]));
+      importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
+      allEntries = Array.from(map.values());
+      renderRecent();
+      importedEntries.forEach(x => idbPutEntry(x));
+      if(importedVerlauf.length){ renderVerlauf(); idbPutMeta('verlauf', verlaufEntries); }
+
+      setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
+    }
 
     // Berichtskopf nur uebernehmen, wenn die Felder noch leer sind (eigene,
-    // bereits eingetragene Werte in dieser Sitzung nicht ueberschreiben)
+    // bereits eingetragene Werte in dieser Sitzung nicht ueberschreiben) -
+    // die Berichts-Nr. wurde oben je nach Fall bereits gesondert behandelt.
     if(data.berichtskopf){
-      const bk = data.berichtskopf;
       const setIfEmpty = (id, val) => {
         const el = document.getElementById(id);
         if(el && !el.value.trim() && val) el.value = val;
@@ -574,13 +737,13 @@ async function importContinueFile(e){
       setIfEmpty('rBaustelle', bk.baustelle);
       setIfEmpty('rKunde', bk.kunde);
       setIfEmpty('rVerfasser', bk.verfasser);
-      setIfEmpty('rBerichtsNr', bk.berichtsNr);
+      if(!isNewReportInReihe) setIfEmpty('rBerichtsNr', bk.berichtsNr);
       setIfEmpty('rVerteiler', bk.verteiler);
       setIfEmpty('rRahmen', bk.rahmentermine);
       updateHeaderProj();
+      scheduleBerichtskopfSave();
     }
 
-    setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
     refreshReportViews();
   }catch(err){
     console.error(err);
@@ -769,7 +932,6 @@ async function saveEntry(){
   const arbeiten = document.getElementById('fArbeiten').value.trim();
 
   if(!currentPhotoBlob || !currentPhotoPreviewDataUrl){ alert('Bitte zuerst ein Foto aufnehmen bzw. auswählen.'); return; }
-  if(!gewerk || !ort){ alert('Bitte Gewerk und Ort angeben.'); return; }
 
   const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
   const nowIso = new Date().toISOString().slice(0,10);
@@ -873,71 +1035,25 @@ async function saveEntryEdit(id){
   }
 }
 
-async function persistGroupOrder(container){
-  const ids = Array.from(container.querySelectorAll('.edit-row')).map(r => r.dataset.id);
-  try{
-    for(let i=0;i<ids.length;i++){
-      await updateEntryFields(ids[i], { sortOrder: (i+1) * 1000 });
-    }
-    refreshReportViews();
-  }catch(err){
-    console.error(err);
-    alert('Reihenfolge speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+function renderVerlauf(){
+  const box = document.getElementById('verlaufList');
+  if(!box) return;
+  if(!verlaufEntries.length){
+    box.innerHTML = '<div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div>';
+    return;
   }
+  box.innerHTML = verlaufEntries.map(v => `
+    <div class="verlauf-line" data-id="${v.id}">
+      <span class="vtxt"><b>Bericht ${escapeHtml(v.berichtNr || '?')}</b>${v.datum ? ' (' + escapeHtml(v.datum) + ')' : ''}: ${v.anzahl} Feststellung${v.anzahl === 1 ? '' : 'en'}${v.gewerke ? ' — ' + escapeHtml(v.gewerke) : ''}</span>
+      <button type="button" onclick="deleteVerlaufLine('${v.id}')" title="Zeile entfernen">✕</button>
+    </div>
+  `).join('');
 }
 
-function enableDragReorder(container){
-  let dragEl = null, startY = 0, startRects = [];
-
-  container.querySelectorAll('.drag-handle').forEach(handle => {
-    handle.onpointerdown = (ev) => {
-      dragEl = handle.closest('.edit-row');
-      if(!dragEl) return;
-      startY = ev.clientY;
-      dragEl.classList.add('dragging');
-      dragEl.setPointerCapture(ev.pointerId);
-      startRects = Array.from(container.querySelectorAll('.edit-row')).map(r => ({ el: r, rect: r.getBoundingClientRect() }));
-
-      const onMove = (mv) => {
-        if(!dragEl) return;
-        const delta = mv.clientY - startY;
-        dragEl.style.transform = `translateY(${delta}px)`;
-        const dragRectInfo = startRects.find(r => r.el === dragEl);
-        const dragCenter = dragRectInfo.rect.top + dragRectInfo.rect.height/2 + delta;
-        for(const r of startRects){
-          if(r.el === dragEl) continue;
-          const otherCenter = r.rect.top + r.rect.height/2;
-          const isBelow = dragEl.compareDocumentPosition(r.el) & Node.DOCUMENT_POSITION_FOLLOWING;
-          if(isBelow && dragCenter > otherCenter){
-            container.insertBefore(dragEl, r.el.nextElementSibling);
-            startRects = Array.from(container.querySelectorAll('.edit-row')).map(x => ({ el: x, rect: x.getBoundingClientRect() }));
-            dragEl.style.transform = `translateY(${mv.clientY - startY}px)`;
-            break;
-          } else if(!isBelow && dragCenter < otherCenter){
-            container.insertBefore(dragEl, r.el);
-            startRects = Array.from(container.querySelectorAll('.edit-row')).map(x => ({ el: x, rect: x.getBoundingClientRect() }));
-            dragEl.style.transform = `translateY(${mv.clientY - startY}px)`;
-            break;
-          }
-        }
-      };
-
-      const onUp = (up) => {
-        if(dragEl){
-          dragEl.classList.remove('dragging');
-          dragEl.style.transform = '';
-          try{ dragEl.releasePointerCapture(up.pointerId); }catch(e){}
-          persistGroupOrder(container);
-        }
-        dragEl = null;
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-      };
-
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-    };
-  });
+function deleteVerlaufLine(id){
+  verlaufEntries = verlaufEntries.filter(v => v.id !== id);
+  renderVerlauf();
+  idbPutMeta('verlauf', verlaufEntries);
 }
 
 function escapeHtml(s){
@@ -963,9 +1079,12 @@ function refreshReportViews(){
 function renderEditor(){
   const doku = allEntries.filter(e=>e.type==='doku').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
   const veranl = allEntries.filter(e=>e.type==='veranlassung').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
-  const build = (list) => list.map((e) => `
+  const build = (list) => list.map((e, idx) => `
     <div class="edit-row" data-id="${e.id}">
-      <div class="drag-handle" title="Ziehen zum Verschieben">⠿</div>
+      <div class="order-btns">
+        <button type="button" class="order-btn" onclick="moveEntry('${e.id}','up')" ${idx===0 ? 'disabled' : ''} title="Nach oben verschieben">▲</button>
+        <button type="button" class="order-btn" onclick="moveEntry('${e.id}','down')" ${idx===list.length-1 ? 'disabled' : ''} title="Nach unten verschieben">▼</button>
+      </div>
       <div class="edit-thumb"><img src="${e.photoUrl}"></div>
       <div class="edit-fields">
         <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
@@ -989,8 +1108,26 @@ function renderEditor(){
   const veranlContainer = document.getElementById('editorVeranl');
   dokuContainer.innerHTML = doku.length ? build(doku) : '<div class="empty">Keine Einträge</div>';
   veranlContainer.innerHTML = veranl.length ? build(veranl) : '<div class="empty">Keine Einträge</div>';
-  if(doku.length) enableDragReorder(dokuContainer);
-  if(veranl.length) enableDragReorder(veranlContainer);
+}
+
+// Reihenfolge per Auf/Ab-Button ändern - statt freiem Ziehen (dabei kam es zu
+// unvorhersehbaren Sprüngen durch die Kombination aus CSS-Transform und
+// gleichzeitiger DOM-Neuanordnung). Diese Variante vertauscht ausschließlich
+// die sortOrder-Werte zweier direkt benachbarter Einträge - eindeutig,
+// nachvollziehbar und ohne jede Koordinaten-/Positionsberechnung.
+function moveEntry(id, dir){
+  const e = allEntries.find(x => x.id === id);
+  if(!e) return;
+  const group = allEntries.filter(x => x.type === e.type).slice().sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+  const idx = group.findIndex(x => x.id === id);
+  const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+  if(swapIdx < 0 || swapIdx >= group.length) return;
+  const other = group[swapIdx];
+  const tmp = e.sortOrder;
+  updateEntryFields(e.id, { sortOrder: other.sortOrder });
+  updateEntryFields(other.id, { sortOrder: tmp });
+  renderEditor();
+  refreshReportViews();
 }
 
 function renderReport(){
