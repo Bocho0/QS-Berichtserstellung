@@ -471,14 +471,28 @@ async function generateWordReport(){
     entries: allEntries
   };
 
+  // Vercel begrenzt Anfrage UND Antwort von Functions hart auf 4,5 MB - bei
+  // vielen/großen Fotos kann das überschritten werden (Fehler 413). Hier
+  // vorab abschätzen und warnen statt den kryptischen Serverfehler zeigen.
+  const payloadStr = JSON.stringify(payload);
+  const estMB = payloadStr.length / (1024 * 1024);
+  if(estMB > 4){
+    btn.disabled = false; btn.textContent = 'Word-Bericht erstellen';
+    alert('Die Fotomenge in diesem Bericht ist mit ca. ' + estMB.toFixed(1) + ' MB zu groß für die Word-Erstellung (Grenze liegt bei 4,5 MB) und würde mit einem Serverfehler abbrechen.\n\nBitte den Bericht in zwei Teilen erstellen (z. B. Feststellungen aufteilen) oder unten die Rohdaten herunterladen und im Chat bei Claude hochladen.');
+    return;
+  }
+
   try{
     const res = await fetch('/api/index', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: payloadStr
     });
     if(!res.ok){
       const errText = await res.text().catch(()=>'');
+      if(res.status === 413){
+        throw new Error('Die Fotos sind zusammen zu groß für die Word-Erstellung (Vercel-Grenze: 4,5 MB). Bitte weniger Feststellungen auf einmal verarbeiten.');
+      }
       throw new Error('Server antwortete mit Fehler ' + res.status + (errText ? ': ' + errText : ''));
     }
     const blob = await res.blob();
@@ -688,7 +702,7 @@ function handlePhoto(e){
   document.getElementById('photoPreview').style.display = 'none';
 
   loadOrientedImage(file).then(function(oriented){
-    const maxDim = 1280;
+    const maxDim = 1000;
     let w = oriented.width, h = oriented.height;
     if (w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
     else if (h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
@@ -716,7 +730,11 @@ function handlePhoto(e){
       ctx.fillText(ts, textX, textY);
     }
 
-    const previewDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    // Für den Server (Berichtserstellung) stärker komprimieren als für die
+    // lokale Fotogalerie, damit mehrere Fotos zusammen nicht die 4,5-MB-
+    // Grenze von Vercel-Functions sprengen (siehe unten toBlob für die
+    // Galerie-Kopie in besserer Qualität).
+    const previewDataUrl = canvas.toDataURL('image/jpeg', 0.65);
     canvas.toBlob(function(blob){
       if(!blob){
         alert('Foto konnte nicht verarbeitet werden.');
