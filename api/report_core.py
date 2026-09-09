@@ -10,6 +10,7 @@ from docx.shared import Pt, Emu
 from docx.oxml.ns import qn
 from docx.oxml import parse_xml
 from lxml import etree
+from xml.sax.saxutils import escape as xml_escape
 from PIL import Image
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -232,6 +233,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     """data: bereits geparstes dict (nicht Dateipfad!)."""
     bk = data.get('berichtskopf', {})
     entries = data.get('entries', [])
+    verlauf = data.get('verlauf', [])
 
     doc = docx.Document(template_path)
 
@@ -266,6 +268,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     anchor_p = None
     pagebreak_p = None
     heading_ref_rPr = None
+    dokumentation_p = None
     for p in doc.paragraphs:
         t = p.text.strip()
         if t.startswith('Anlagen'):
@@ -274,6 +277,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
             set_outline_level(p, 0)
             if t == 'Dokumentation:' and p.runs:
                 heading_ref_rPr = p.runs[0]._r.find(qn('w:rPr'))
+                dokumentation_p = p
         if pagebreak_p is None:
             for br in p._p.findall('.//' + qn('w:br')):
                 if br.get(qn('w:type')) == 'page':
@@ -316,6 +320,34 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
 
         pagebreak_p._p.addprevious(toc_heading)
         pagebreak_p._p.addprevious(toc_field)
+
+    # Verlauf vorheriger Berichte (Kurzdarstellung) direkt über der
+    # Dokumentationstabelle einfügen - so bleiben frühere Feststellungen als
+    # kurze Referenzzeile sichtbar, ohne bei jedem neuen Bericht der Reihe
+    # erneut als volle Einträge (samt Fotos) aufzutauchen.
+    if verlauf and dokumentation_p is not None:
+        vref_rpr_xml = (etree.tostring(heading_ref_rPr, encoding='unicode')
+                        if heading_ref_rPr is not None
+                        else f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>')
+        vtext_rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
+
+        verlauf_heading = parse_xml(f'''<w:p xmlns:w="{W}">
+          <w:pPr><w:spacing w:before="120" w:after="80"/></w:pPr>
+          <w:r>{vref_rpr_xml}<w:t>Verlauf vorheriger Berichte</w:t></w:r>
+        </w:p>''')
+        dokumentation_p._p.addprevious(verlauf_heading)
+
+        for v in verlauf:
+            berichtnr = xml_escape(str(v.get('berichtNr', '') or ''))
+            datum = xml_escape(str(v.get('datum', '') or ''))
+            anzahl = v.get('anzahl', '')
+            gewerke = xml_escape(str(v.get('gewerke', '') or ''))
+            zeile = f'Bericht {berichtnr}' + (f' ({datum})' if datum else '') + f': {anzahl} Feststellung' + ('en' if anzahl != 1 else '') + (f' — {gewerke}' if gewerke else '')
+            vline = parse_xml(f'''<w:p xmlns:w="{W}">
+              <w:pPr><w:spacing w:after="40"/></w:pPr>
+              <w:r>{vtext_rpr_xml}<w:t xml:space="preserve">{zeile}</w:t></w:r>
+            </w:p>''')
+            dokumentation_p._p.addprevious(vline)
 
     # Fußzeile: Dateiname (links) und Seitenzahl (rechts) auf eine gemeinsame
     # Zeile bringen. Beides lag bisher in zwei getrennten Absätzen unter-
@@ -433,6 +465,58 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     # Rahmentermine-/Wetter-Beispieldaten leeren
     clear_data_rows(doc.tables[1])
     clear_data_rows(doc.tables[2])
+
+    # Rahmentermine-Tabelle befüllen (bisher wurde dieses Feld gesammelt aber
+    # nie tatsächlich in die Word-Tabelle geschrieben - Format je Zeile:
+    # "Bezeichnung; Terminplan; Bautenstand %; Status"). Die App kennt vier
+    # Status-Werte (im-termin/nicht-kritisch/plus2/plus4), die Word-Vorlage
+    # aber nur drei Ampelfarben - im-termin und nicht-kritisch werden daher
+    # beide auf Grün gemappt.
+    if bk.get('rahmentermine', '').strip():
+        RAHMEN_COLOR = {
+            'im-termin': 'B2CB7F',
+            'nicht-kritisch': 'B2CB7F',
+            'plus2': 'F8A764',
+            'plus4': 'F95649',
+        }
+        rt = doc.tables[2]
+        rt_base_run = None
+        for p in rt.rows[0].cells[1].paragraphs:
+            if p.runs:
+                rt_base_run = p.runs[0]
+                break
+        rows_text = [r.strip() for r in bk['rahmentermine'].split('\n') if r.strip()]
+        for i, row_text in enumerate(rows_text):
+            if i + 1 >= len(rt.rows):
+                break
+            parts = [p.strip() for p in row_text.split(';')]
+            parts += [''] * (4 - len(parts))
+            bezeichnung, terminplan, bautenstand, status = parts[:4]
+            row = rt.rows[i + 1]
+            col_text = {0: bezeichnung, 2: terminplan, 4: bautenstand}
+            for col_idx, val in col_text.items():
+                if not val or col_idx >= len(row.cells):
+                    continue
+                cell = row.cells[col_idx]
+                for p in cell.paragraphs:
+                    for r in list(p.runs):
+                        r.text = ''
+                target_p = cell.paragraphs[0]
+                r = target_p.add_run(val)
+                if rt_base_run is not None:
+                    set_run_font(r, rt_base_run)
+            fill = RAHMEN_COLOR.get(status.lower())
+            if fill and len(row.cells) > 6:
+                color_cell = row.cells[6]
+                tcPr = color_cell._tc.get_or_add_tcPr()
+                old_shd = tcPr.find(qn('w:shd'))
+                if old_shd is not None:
+                    tcPr.remove(old_shd)
+                shd = tcPr.makeelement(qn('w:shd'), {})
+                shd.set(qn('w:val'), 'clear')
+                shd.set(qn('w:color'), 'auto')
+                shd.set(qn('w:fill'), fill)
+                tcPr.append(shd)
 
     # Kopfzeilen: Projektname (Logo wird nie angefasst)
     projekt_text = (bk.get('projekt', '') + (' — ' + bk['baustelle'] if bk.get('baustelle') else '')).strip(' —')
