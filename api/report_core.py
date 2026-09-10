@@ -641,6 +641,10 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                         r.text = ''
         if temp_min and len(row.cells) > 1:
             cell = row.cells[1]
+            if cell.paragraphs and cell.paragraphs[0].runs:
+                cell.paragraphs[0].runs[0].text = 'Min.'
+                for r in cell.paragraphs[0].runs[1:]:
+                    r.text = ''
             value_p = cell.paragraphs[1] if len(cell.paragraphs) > 1 else None
             if value_p is not None and value_p.runs:
                 value_p.runs[0].text = temp_min
@@ -648,6 +652,10 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                     r.text = ''
         if temp_max and len(row.cells) > 2:
             cell = row.cells[2]
+            if cell.paragraphs and cell.paragraphs[0].runs:
+                cell.paragraphs[0].runs[0].text = 'Max.'
+                for r in cell.paragraphs[0].runs[1:]:
+                    r.text = ''
             value_p = cell.paragraphs[1] if len(cell.paragraphs) > 1 else None
             if value_p is not None and value_p.runs:
                 value_p.runs[0].text = temp_max
