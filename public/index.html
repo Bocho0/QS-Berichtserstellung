@@ -63,7 +63,7 @@
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .recent-item{ display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--concrete-2); align-items:center; }
   .recent-item:last-child{ border-bottom:none; }
-  .recent-item img{ width:52px; height:52px; object-fit:cover; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
+  .recent-item img{ width:92px; height:92px; object-fit:cover; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
   .recent-item .meta{ flex:1; min-width:0; }
   .recent-item .meta .t1{ font-weight:700; font-size:13px; }
   .recent-item .meta .t2{ font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -181,7 +181,7 @@
         <button type="button" data-type="veranlassung" onclick="setType('veranlassung')">Veranlassung</button>
       </div>
 
-      <label style="display:flex;align-items:center;gap:8px;margin-top:0">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
         <input type="checkbox" id="fTimestamp" checked style="width:auto;margin:0">
         <span style="font-weight:600;color:var(--muted);font-size:12px">Datum/Uhrzeit ins Foto einblenden</span>
       </label>
@@ -189,33 +189,12 @@
       <label class="photo-box" for="photoInput">
         <div id="photoPlaceholder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-          <div class="cta">Foto auswählen<span class="big">aus Timestamp Camera Basic / Galerie</span></div>
+          <div class="cta">Foto aufnehmen / auswählen<span class="big">wird sofort als Feststellung gespeichert</span></div>
         </div>
         <img id="photoPreview" style="display:none">
       </label>
       <input type="file" id="photoInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="handlePhoto(event)">
-      <div class="hint">Foto zuerst mit Timestamp Camera Basic aufnehmen (Datum/Uhrzeit wird dort ins Bild eingebrannt), dann hier aus der Fotogalerie auswählen.</div>
-
-      <label>Gewerk</label>
-      <input type="text" id="fGewerk" placeholder="z. B. Rohbau, Abdichtung, Elektro">
-      <label>Ort</label>
-      <input type="text" id="fOrt" placeholder="z. B. Haus 1, Süd">
-      <label>Bauteil</label>
-      <input type="text" id="fBauteil" placeholder="z. B. Decke über 1.OG, Achse M-N">
-      <label>Info / Ausgeführte Arbeiten</label>
-      <textarea id="fArbeiten" placeholder="z. B. Schalungsarbeiten, Bewehrung eingebaut …"></textarea>
-      <label>Material <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-      <input type="text" id="fMaterial" placeholder="z. B. Bitumenbahn XY">
-      <div id="veranlassungFields" style="display:none">
-        <label>Verantwortlichkeit</label>
-        <input type="text" id="fVerantwortlich" placeholder="z. B. GE, NU Rohbau">
-      </div>
-      <div class="row2">
-        <div><label>Datum</label><input type="text" id="fDatum" readonly></div>
-        <div><label>Bearbeiter (Kürzel)</label><input type="text" id="fKuerzel" placeholder="z. B. NFM"></div>
-      </div>
-      <button class="btn-primary" id="saveBtn" onclick="saveEntry()" disabled>Zuerst Ordner auswählen (siehe oben)</button>
-      <div class="hint" id="saveHint">Wird in dieser Sitzung gesammelt. Foto wird zusätzlich zum Sichern in die Galerie angeboten.</div>
+      <div class="hint">Foto wird sofort ohne weitere Eingabe als Feststellung gesichert (Gewerk, Ort, Info usw. trägst du später bequem auf der Berichtsseite ein) und zusätzlich in Originalqualität in deine Fotogalerie angeboten.</div>
     </div>
 
     <div class="card">
@@ -241,26 +220,22 @@
           <input type="number" id="rBerichtsNr" placeholder="z. B. 1" min="1">
         </div>
         <div>
-          <label>Witterung Min. <button type="button" class="wetter-btn" onclick="fetchWeatherForDate()" title="Wetter für das eingetragene Datum automatisch ermitteln">🌤️ automatisch</button></label>
-          <input type="text" id="rTempMin" placeholder="z. B. 16°C">
+          <label>Temperatur Min. <button type="button" class="wetter-btn" onclick="fetchWeatherForDate()" title="Temperatur für das eingetragene Datum automatisch ermitteln">🌤️ automatisch</button></label>
+          <input type="text" id="rTempMin" placeholder="z. B. 16,0°C">
         </div>
-        <div><label>Witterung Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22°C"></div>
+        <div><label>Temperatur Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22,0°C"></div>
         <div class="full" id="wetterStatus" style="font-size:12px;color:var(--muted);display:none;"></div>
-        <div class="full"><label>Dateiname (Fußzeile)</label><input type="text" id="rDateiname" placeholder="z. B. 260731_NFM-QS-Bautenstand_005.docx"></div>
+        <div class="full"><label>Dateiname (Fußzeile) <span style="font-weight:400;color:var(--muted)">(wird automatisch aus Datum + Kürzel gebildet, bei Bedarf überschreibbar)</span></label><input type="text" id="rDateiname" placeholder="z. B. 260910_QS-Bericht-NFM.docx"></div>
       </div>
       <label>Firmenlogo <span style="font-weight:400;color:var(--muted)">(optional, nur für diese Sitzung)</span></label>
       <div class="logo-upload">
         <input type="file" accept="image/*" id="logoInput" onchange="handleLogo(event)">
         <img id="logoPreview" style="display:none">
       </div>
-      <label>Verteiler <span style="font-weight:400;color:var(--muted)">(eine Zeile je Empfänger)</span></label>
-      <textarea class="mono" id="rVerteiler" placeholder="Name; Firma; Kürzel; E-Mail"></textarea>
-      <details class="help"><summary>Format-Beispiel</summary><div class="ex">Max Mustermann; Mustermann GmbH; MM; max.mustermann@mail.com</div></details>
-      <label>Rahmentermine <span style="font-weight:400;color:var(--muted)">(eine Zeile je Position — manuell gepflegt)</span></label>
-      <textarea class="mono" id="rRahmen" placeholder="Bezeichnung; Terminplan; Bautenstand %; Status"></textarea>
-      <details class="help"><summary>Format-Beispiel &amp; Status-Werte</summary><div class="ex">Rohbau; 03.03.2026 - 30.10.2026; 50%; im-termin
-Huelle; 30.11.2026 - 09.07.2027; 0%; nicht-kritisch
-Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
+
+      <div class="hint" style="margin-top:14px">Verteiler und Rahmentermine werden nicht mehr hier eingetippt — sie kommen entweder aus einer hochgeladenen Berichtsdatei (JSON) oder werden später direkt im fertigen Word-Dokument ergänzt.</div>
+      <textarea class="mono" id="rVerteiler" style="display:none" aria-hidden="true"></textarea>
+      <textarea class="mono" id="rRahmen" style="display:none" aria-hidden="true"></textarea>
 
       <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
       <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
@@ -283,6 +258,9 @@ Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
       </div>
       <button class="btn-primary" onclick="generateWordReport()" id="genWordBtn">Word-Bericht erstellen</button>
       <div class="hint" id="genWordHint">Erstellt die fertige Word-Datei direkt hier, im exakten Vorlagenformat — kein Chat-Umweg nötig.</div>
+
+      <button class="btn-secondary" style="margin-top:10px" onclick="splitAndDownloadReport()" id="splitBtn">Bericht in 2 Teilen erstellen</button>
+      <div class="hint" id="splitHint">Nur nötig, wenn oben eine Meldung zu zu großer Datenmenge erscheint (z. B. bei vielen Fotos) — teilt in zwei Word-Dateien auf, ohne Fotoqualität zu verlieren.</div>
 
       <button class="btn-primary" onclick="exportForWordReport()" id="genJsonBtn">Berichtsdaten herunterladen (.json)</button>
       <div class="hint">Zum Fortführen dieser Baustelle beim nächsten Termin oder im nächsten Bericht wieder hochladen (Tab „Erfassen" → „Vorherige Sitzung laden") — dient außerdem als Sicherung und lässt sich alternativ im Chat mit Claude zu einem Word-Bericht verarbeiten.</div>
@@ -508,7 +486,6 @@ async function finishCollection(){
 }
 
 function todayStr(){ return new Date().toLocaleDateString('de-DE'); }
-document.getElementById('fDatum').value = todayStr();
 document.getElementById('rDatum').value = todayStr();
 document.getElementById('logoPreview').src = logoDataUrl;
 document.getElementById('logoPreview').style.display = 'inline-block';
@@ -541,28 +518,54 @@ function guessLocationName(){
   return projekt || document.getElementById('rBaustelle').value.trim();
 }
 
+// Baustellen-Kürzel für den Dateinamen: der Teil VOR dem "|" in "Projekt /
+// Baustelle" (z. B. "NFM" aus "NFM | München").
+function guessKuerzel(){
+  const projekt = document.getElementById('rProjekt').value.trim();
+  if(projekt.includes('|')) return projekt.split('|')[0].trim();
+  return projekt;
+}
+
+// Dateiname automatisch aus Datum + Baustellen-Kürzel ableiten:
+// JJMMTT_QS-Bericht-Kürzel, z. B. "260910_QS-Bericht-NFM.docx".
+function autoDateinameFromInputs(){
+  const iso = parseGermanDateToISO(document.getElementById('rDatum').value);
+  const kuerzel = guessKuerzel();
+  if(!iso || !kuerzel) return '';
+  const jj = iso.slice(2,4), mm = iso.slice(5,7), tt = iso.slice(8,10);
+  return `${jj}${mm}${tt}_QS-Bericht-${kuerzel.replace(/[^A-Za-z0-9äöüÄÖÜß-]+/g,'')}.docx`;
+}
+
+function maybeAutoFillDateiname(){
+  const el = document.getElementById('rDateiname');
+  if(el && !el.value.trim()){
+    const auto = autoDateinameFromInputs();
+    if(auto){ el.value = auto; scheduleBerichtskopfSave(); }
+  }
+}
+
 async function fetchWeatherForDate(){
   const statusEl = document.getElementById('wetterStatus');
   const showStatus = (msg) => { statusEl.style.display = 'block'; statusEl.textContent = msg; };
 
   const isoDate = parseGermanDateToISO(document.getElementById('rDatum').value);
   if(!isoDate){
-    showStatus('Witterung: Bitte zuerst ein gültiges Datum im Format TT.MM.JJJJ eintragen.');
+    showStatus('Temperatur: Bitte zuerst ein gültiges Datum im Format TT.MM.JJJJ eintragen.');
     return;
   }
   const location = guessLocationName();
   if(!location){
-    showStatus('Witterung: Bitte zuerst Projekt/Baustelle (Ort) eintragen, damit der Standort bestimmt werden kann.');
+    showStatus('Temperatur: Bitte zuerst Projekt/Baustelle (Ort) eintragen, damit der Standort bestimmt werden kann.');
     return;
   }
 
-  showStatus('Witterung wird für ' + location + ' ermittelt …');
+  showStatus('Temperatur wird für ' + location + ' am ' + document.getElementById('rDatum').value + ' ermittelt …');
   try{
     const geoRes = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(location) + '&count=1&language=de&format=json');
     if(!geoRes.ok) throw new Error('Geokodierung fehlgeschlagen (' + geoRes.status + ')');
     const geo = await geoRes.json();
     if(!geo.results || !geo.results.length){
-      showStatus('Witterung: Ort "' + location + '" nicht gefunden — bitte manuell eintragen.');
+      showStatus('Temperatur: Ort "' + location + '" nicht gefunden — bitte manuell eintragen.');
       return;
     }
     const { latitude, longitude, name } = geo.results[0];
@@ -575,25 +578,34 @@ async function fetchWeatherForDate(){
     const tMax = wdata.daily && wdata.daily.temperature_2m_max && wdata.daily.temperature_2m_max[0];
     const tMin = wdata.daily && wdata.daily.temperature_2m_min && wdata.daily.temperature_2m_min[0];
     if(tMax === undefined || tMin === undefined || tMax === null || tMin === null){
-      showStatus('Witterung: Für dieses Datum liegen keine Daten vor (z. B. weil es in der Zukunft liegt) — bitte manuell eintragen.');
+      showStatus('Temperatur: Für dieses Datum liegen keine Daten vor (z. B. weil es in der Zukunft liegt) — bitte manuell eintragen.');
       return;
     }
-    document.getElementById('rTempMin').value = Math.round(tMin) + '°C';
-    document.getElementById('rTempMax').value = Math.round(tMax) + '°C';
+    document.getElementById('rTempMin').value = tMin.toFixed(1) + '°C';
+    document.getElementById('rTempMax').value = tMax.toFixed(1) + '°C';
     scheduleBerichtskopfSave();
     refreshReportViews();
-    showStatus('Witterung für ' + name + ' am ' + document.getElementById('rDatum').value + ' übernommen (Quelle: Open-Meteo). Bei Bedarf hier manuell anpassen.');
+    showStatus('Temperatur für ' + name + ' am ' + document.getElementById('rDatum').value + ' übernommen (Quelle: Open-Meteo). Bei Bedarf hier manuell anpassen.');
   }catch(err){
     console.error(err);
-    showStatus('Witterung konnte nicht automatisch ermittelt werden — bitte manuell eintragen.');
+    showStatus('Temperatur konnte nicht automatisch ermittelt werden — bitte manuell eintragen.');
   }
 }
 
 // Beim Verlassen des Datumsfelds automatisch versuchen, sofern die
-// Witterungsfelder noch leer sind (manuell eingetragene Werte werden nie
-// überschrieben).
+// Temperaturfelder noch leer sind (manuell eingetragene Werte werden nie
+// überschrieben) - und ebenso den Dateinamen automatisch ableiten.
 document.getElementById('rDatum').addEventListener('blur', () => {
   if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim()){
+    fetchWeatherForDate();
+  }
+  maybeAutoFillDateiname();
+});
+// Auch beim Eintragen von Projekt/Baustelle (liefert das Kürzel bzw. den
+// Ort) automatisch nachziehen, falls Datum bereits gesetzt ist.
+document.getElementById('rProjekt').addEventListener('blur', () => {
+  maybeAutoFillDateiname();
+  if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim() && document.getElementById('rDatum').value.trim()){
     fetchWeatherForDate();
   }
 });
@@ -606,13 +618,6 @@ function setConnStatus(ok, text){
   el.innerHTML = '<span class="dot"></span>' + text;
 }
 setConnStatus(true, 'Bereit — Fotos werden direkt in deine Fotogalerie gespeichert.');
-
-function updateSaveButtonState(){
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = false;
-  btn.textContent = 'Feststellung speichern';
-}
-updateSaveButtonState();
 
 // Beim Laden der Seite automatisch prüfen, ob im Zwischenspeicher dieses
 // Geräts noch Feststellungen aus einer nicht abgeschlossenen Sitzung liegen
@@ -649,6 +654,79 @@ async function saveToGallery(id){
   }
 }
 
+// Automatisches Sichern direkt nach der Aufnahme, mit dem in handlePhoto()
+// bereits in Originalqualität vorliegenden Blob (kein erneutes Abrufen/
+// Komprimieren nötig wie bei der manuellen Variante oben).
+async function saveToGalleryBlob(blob, entry){
+  try{
+    const filename = 'foto_' + (entry.datum||'').replace(/\./g,'-') + '_' + entry.id.slice(-5) + '.jpg';
+    const file = new File([blob], filename, { type: 'image/jpeg' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: 'Foto sichern' });
+      return;
+    }
+  }catch(err){
+    if(err && err.name === 'AbortError') return;
+    console.error('Automatisches Sichern fehlgeschlagen, nutze Fallback', err);
+  }
+  // Fallback ohne Web-Share-API: Bild in neuem Tab oeffnen (Original-
+  // Qualitaet), dort per Long-Press/Teilen-Symbol sichern.
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if(!win){
+    console.warn('Pop-up für automatische Galerie-Sicherung blockiert.');
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 20000);
+}
+
+// Gemeinsame Kern-Logik zum Anfragen + Herunterladen eines Word-Berichts,
+// wiederverwendet von generateWordReport() und splitAndDownloadReport().
+async function requestAndDownloadWordDoc(payload, btn, hint){
+  const payloadStr = JSON.stringify(payload);
+  const estMB = payloadStr.length / (1024 * 1024);
+  if(estMB > 4){
+    return { ok: false, tooLarge: true, estMB };
+  }
+  const res = await fetch('/api/index', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payloadStr
+  });
+  if(!res.ok){
+    const errText = await res.text().catch(()=>'');
+    if(res.status === 413){
+      throw new Error('Die Fotos sind zusammen zu groß für die Word-Erstellung (Vercel-Grenze: 4,5 MB).');
+    }
+    throw new Error('Server antwortete mit Fehler ' + res.status + (errText ? ': ' + errText : ''));
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition') || '';
+  const match = cd.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : 'bericht.docx';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return { ok: true, filename };
+}
+
+function buildBerichtskopfPayload(){
+  return {
+    projekt: document.getElementById('rProjekt').value,
+    baustelle: document.getElementById('rBaustelle').value,
+    kunde: document.getElementById('rKunde').value,
+    verfasser: document.getElementById('rVerfasser').value,
+    datum: document.getElementById('rDatum').value,
+    berichtsNr: document.getElementById('rBerichtsNr').value,
+    tempMin: document.getElementById('rTempMin').value,
+    tempMax: document.getElementById('rTempMax').value,
+    verteiler: document.getElementById('rVerteiler').value,
+    rahmentermine: document.getElementById('rRahmen').value,
+    dateiname: document.getElementById('rDateiname').value.trim()
+  };
+}
+
 async function generateWordReport(){
   if(allEntries.length === 0){ alert('Noch keine Feststellungen erfasst.'); return; }
   const btn = document.getElementById('genWordBtn');
@@ -656,58 +734,20 @@ async function generateWordReport(){
   btn.disabled = true; btn.textContent = 'Erstelle Bericht …';
 
   const payload = {
-    berichtskopf: {
-      projekt: document.getElementById('rProjekt').value,
-      baustelle: document.getElementById('rBaustelle').value,
-      kunde: document.getElementById('rKunde').value,
-      verfasser: document.getElementById('rVerfasser').value,
-      datum: document.getElementById('rDatum').value,
-      berichtsNr: document.getElementById('rBerichtsNr').value,
-      tempMin: document.getElementById('rTempMin').value,
-      tempMax: document.getElementById('rTempMax').value,
-      verteiler: document.getElementById('rVerteiler').value,
-      rahmentermine: document.getElementById('rRahmen').value,
-      dateiname: document.getElementById('rDateiname').value.trim()
-    },
+    berichtskopf: buildBerichtskopfPayload(),
     entries: allEntries,
     verlauf: verlaufEntries,
     startNr: getStartNr()
   };
 
-  // Vercel begrenzt Anfrage UND Antwort von Functions hart auf 4,5 MB - bei
-  // vielen/großen Fotos kann das überschritten werden (Fehler 413). Hier
-  // vorab abschätzen und warnen statt den kryptischen Serverfehler zeigen.
-  const payloadStr = JSON.stringify(payload);
-  const estMB = payloadStr.length / (1024 * 1024);
-  if(estMB > 4){
-    btn.disabled = false; btn.textContent = 'Word-Bericht erstellen';
-    alert('Die Fotomenge in diesem Bericht ist mit ca. ' + estMB.toFixed(1) + ' MB zu groß für die Word-Erstellung (Grenze liegt bei 4,5 MB) und würde mit einem Serverfehler abbrechen.\n\nBitte den Bericht in zwei Teilen erstellen (z. B. Feststellungen aufteilen) oder unten die Rohdaten herunterladen und im Chat bei Claude hochladen.');
-    return;
-  }
-
   try{
-    const res = await fetch('/api/index', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: payloadStr
-    });
-    if(!res.ok){
-      const errText = await res.text().catch(()=>'');
-      if(res.status === 413){
-        throw new Error('Die Fotos sind zusammen zu groß für die Word-Erstellung (Vercel-Grenze: 4,5 MB). Bitte weniger Feststellungen auf einmal verarbeiten.');
-      }
-      throw new Error('Server antwortete mit Fehler ' + res.status + (errText ? ': ' + errText : ''));
+    const result = await requestAndDownloadWordDoc(payload, btn, hint);
+    if(result.tooLarge){
+      btn.disabled = false; btn.textContent = 'Word-Bericht erstellen';
+      alert('Die Fotomenge in diesem Bericht ist mit ca. ' + result.estMB.toFixed(1) + ' MB zu groß für die Word-Erstellung (Grenze liegt bei 4,5 MB) und würde mit einem Serverfehler abbrechen.\n\nBitte unten den Button "Bericht in 2 Teilen erstellen" nutzen — dabei bleibt die volle Fotoqualität erhalten, nur die Datenmenge pro Datei wird kleiner.');
+      return;
     }
-    const blob = await res.blob();
-    const cd = res.headers.get('Content-Disposition') || '';
-    const match = cd.match(/filename="?([^"]+)"?/);
-    const filename = match ? match[1] : 'bericht.docx';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    hint.textContent = 'Fertig — "' + filename + '" wurde heruntergeladen.';
+    hint.textContent = 'Fertig — "' + result.filename + '" wurde heruntergeladen.';
     // Bericht ist erfolgreich heruntergeladen: Feststellungen und Deckblatt-
     // Angaben aus dem Zwischenspeicher leeren, damit beim nächsten Öffnen der
     // App nicht wieder derselbe (bereits abgeschlossene) Bericht auftaucht.
@@ -720,6 +760,72 @@ async function generateWordReport(){
     alert('Bericht konnte nicht erstellt werden: ' + (err && err.message ? err.message : err) + '\n\nAlternativ unten die Rohdaten herunterladen und im Chat bei Claude hochladen.');
   }finally{
     btn.disabled = false; btn.textContent = 'Word-Bericht erstellen';
+  }
+}
+
+// Bericht in zwei ungefähr gleich große Teile aufteilen (nach geschätzter
+// Datenmenge, nicht nur nach Anzahl - Fotos sind unterschiedlich groß) und
+// als zwei separate Word-Dateien herunterladen. Löst die 4,5-MB-Grenze,
+// ohne die Fotoqualität reduzieren zu müssen. Dokumentations-Feststellungen
+// werden dabei fortlaufend nummeriert (Teil 2 setzt die Nr. von Teil 1 fort).
+async function splitAndDownloadReport(){
+  if(allEntries.length < 2){ alert('Dafür werden mindestens 2 Feststellungen benötigt.'); return; }
+  const btn = document.getElementById('splitBtn');
+  const hint = document.getElementById('splitHint');
+
+  const sorted = allEntries.slice().sort((a,b) => (a.sortOrder||0)-(b.sortOrder||0));
+  const sizes = sorted.map(e => JSON.stringify(e).length);
+  const totalSize = sizes.reduce((a,b)=>a+b, 0);
+  let acc = 0, splitIdx = sorted.length;
+  for(let i=0;i<sorted.length;i++){
+    acc += sizes[i];
+    if(acc >= totalSize/2){ splitIdx = i+1; break; }
+  }
+  splitIdx = Math.max(1, Math.min(splitIdx, sorted.length-1));
+  const teil1 = sorted.slice(0, splitIdx);
+  const teil2 = sorted.slice(splitIdx);
+
+  if(!confirm('Bericht in 2 Dateien aufteilen?\n\nTeil 1: ' + teil1.length + ' Feststellungen\nTeil 2: ' + teil2.length + ' Feststellungen\n\nBeide Dateien werden nacheinander heruntergeladen. Danach wird der Zwischenspeicher geleert, wie bei der normalen Berichtserstellung.')) return;
+
+  btn.disabled = true; btn.textContent = 'Erstelle Teil 1 …';
+  hint.textContent = '';
+
+  const baseBk = buildBerichtskopfPayload();
+  const baseName = (baseBk.dateiname || autoDateinameFromInputs() || 'bericht.docx').replace(/\.docx$/i, '');
+  const startNr1 = getStartNr();
+  const dokuCount1 = teil1.filter(e => e.type === 'doku').length;
+  const startNr2 = startNr1 + dokuCount1;
+
+  try{
+    const payload1 = {
+      berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-1-von-2.docx' },
+      entries: teil1, verlauf: verlaufEntries, startNr: startNr1
+    };
+    const r1 = await requestAndDownloadWordDoc(payload1);
+    if(r1.tooLarge){
+      alert('Selbst die Hälfte ist mit ca. ' + r1.estMB.toFixed(1) + ' MB noch zu groß. Bitte den Bericht in mehr als 2 Teilen erstellen (Feststellungen manuell in kleineren Gruppen exportieren) oder die Rohdaten im Chat bei Claude hochladen.');
+      return;
+    }
+
+    btn.textContent = 'Erstelle Teil 2 …';
+    const payload2 = {
+      berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-2-von-2.docx' },
+      entries: teil2, verlauf: verlaufEntries, startNr: startNr2
+    };
+    const r2 = await requestAndDownloadWordDoc(payload2);
+    if(r2.tooLarge){
+      alert('Teil 1 ("' + r1.filename + '") wurde bereits heruntergeladen. Teil 2 ist mit ca. ' + r2.estMB.toFixed(1) + ' MB aber immer noch zu groß — bitte diesen Button erneut auf die verbleibenden Feststellungen anwenden oder in mehr Teile aufteilen.');
+      return;
+    }
+
+    hint.textContent = 'Fertig — "' + r1.filename + '" und "' + r2.filename + '" wurden heruntergeladen.';
+    await idbClearEntries();
+    await idbDeleteMetaKey('berichtskopf');
+  }catch(err){
+    console.error(err);
+    alert('Aufteilen fehlgeschlagen: ' + (err && err.message ? err.message : err));
+  }finally{
+    btn.disabled = false; btn.textContent = 'Bericht in 2 Teilen erstellen';
   }
 }
 
@@ -812,13 +918,10 @@ async function importContinueFile(e){
 
 
 let currentType = 'doku';
-let currentPhotoBlob = null;
-let currentPhotoPreviewDataUrl = null;
 
 function setType(t){
   currentType = t;
   document.querySelectorAll('.type-toggle button').forEach(b=>b.classList.toggle('on', b.dataset.type===t));
-  document.getElementById('veranlassungFields').style.display = (t==='veranlassung') ? 'block' : 'none';
 }
 
 function handleLogo(e){
@@ -919,21 +1022,15 @@ function handlePhoto(e){
   const file = e.target.files[0];
   if(!file) return;
   const originalCta = document.getElementById('photoPlaceholder').innerHTML;
-  document.getElementById('photoPlaceholder').innerHTML = '<div class="cta"><span class="big">Foto wird verarbeitet …</span></div>';
+  document.getElementById('photoPlaceholder').innerHTML = '<div class="cta"><span class="big">Foto wird gespeichert …</span></div>';
   document.getElementById('photoPlaceholder').style.display = 'block';
   document.getElementById('photoPreview').style.display = 'none';
 
   loadOrientedImage(file).then(function(oriented){
-    const maxDim = 1000;
-    let w = oriented.width, h = oriented.height;
-    if (w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
-    else if (h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(oriented, 0, 0, w, h);
+    const fullW = oriented.width, fullH = oriented.height;
 
-    if(document.getElementById('fTimestamp').checked){
+    function drawTimestamp(ctx, w, h){
+      if(!document.getElementById('fTimestamp').checked) return;
       const now = new Date();
       const ts = now.toLocaleDateString('de-DE') + '   ' + now.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
       const fontSize = Math.max(20, Math.round(w * 0.040));
@@ -952,24 +1049,53 @@ function handlePhoto(e){
       ctx.fillText(ts, textX, textY);
     }
 
-    // Für den Server (Berichtserstellung) stärker komprimieren als für die
-    // lokale Fotogalerie, damit mehrere Fotos zusammen nicht die 4,5-MB-
-    // Grenze von Vercel-Functions sprengen (siehe unten toBlob für die
-    // Galerie-Kopie in besserer Qualität).
-    const previewDataUrl = canvas.toDataURL('image/jpeg', 0.65);
-    canvas.toBlob(function(blob){
-      if(!blob){
-        alert('Foto konnte nicht verarbeitet werden.');
-        document.getElementById('photoPlaceholder').innerHTML = originalCta;
-        return;
-      }
-      currentPhotoBlob = blob;
-      currentPhotoPreviewDataUrl = previewDataUrl;
+    // Kleine, komprimierte Version für Bericht/Server (muss unter der
+    // Vercel-Größengrenze bleiben, siehe an anderer Stelle).
+    const maxDim = 1000;
+    let w = fullW, h = fullH;
+    if (w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+    else if (h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+    const smallCanvas = document.createElement('canvas');
+    smallCanvas.width = w; smallCanvas.height = h;
+    const smallCtx = smallCanvas.getContext('2d');
+    smallCtx.drawImage(oriented, 0, 0, w, h);
+    drawTimestamp(smallCtx, w, h);
+    const previewDataUrl = smallCanvas.toDataURL('image/jpeg', 0.65);
+
+    // Vollformat-Version in Original-Auflösung für die Fotogalerie (nicht
+    // Teil des Berichts/JSON - nur fürs eigene Archiv auf dem Gerät).
+    const fullCanvas = document.createElement('canvas');
+    fullCanvas.width = fullW; fullCanvas.height = fullH;
+    const fullCtx = fullCanvas.getContext('2d');
+    fullCtx.drawImage(oriented, 0, 0, fullW, fullH);
+    drawTimestamp(fullCtx, fullW, fullH);
+
+    fullCanvas.toBlob(function(fullBlob){
+      // Feststellung sofort ohne Text speichern - Gewerk/Ort/Info etc.
+      // werden erst später auf der Berichtsseite eingetragen.
+      const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+      const nowIso = new Date().toISOString().slice(0,10);
+      const entry = {
+        id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
+        bauteil: '', material: '', verantwortlich: '', kuerzel: '',
+        datum: todayStr(), datumISO: nowIso,
+        sortOrder: Date.now(), photoUrl: previewDataUrl, createdAt: Date.now()
+      };
+      allEntries.push(entry);
+      renderRecent();
+      idbPutEntry(entry);
+
       document.getElementById('photoPreview').src = previewDataUrl;
       document.getElementById('photoPreview').style.display = 'block';
       document.getElementById('photoPlaceholder').style.display = 'none';
-      document.getElementById('photoPlaceholder').innerHTML = originalCta;
-    }, 'image/jpeg', 0.8);
+      setTimeout(() => {
+        document.getElementById('photoPreview').style.display = 'none';
+        document.getElementById('photoPlaceholder').style.display = 'block';
+        document.getElementById('photoPlaceholder').innerHTML = originalCta;
+      }, 900);
+
+      if(fullBlob) saveToGalleryBlob(fullBlob, entry);
+    }, 'image/jpeg', 0.92);
   }).catch(function(err){
     console.error(err);
     alert('Foto konnte nicht verarbeitet werden: ' + (err && err.message ? err.message : err));
@@ -983,57 +1109,6 @@ function switchTab(name){
   document.getElementById('tab-capture').classList.toggle('active', name==='capture');
   document.getElementById('tab-report').classList.toggle('active', name==='report');
   if(name==='report') refreshReportViews();
-}
-
-async function saveEntry(){
-  const gewerk = document.getElementById('fGewerk').value.trim();
-  const ort = document.getElementById('fOrt').value.trim();
-  const arbeiten = document.getElementById('fArbeiten').value.trim();
-
-  if(!currentPhotoBlob || !currentPhotoPreviewDataUrl){ alert('Bitte zuerst ein Foto aufnehmen bzw. auswählen.'); return; }
-
-  const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-  const nowIso = new Date().toISOString().slice(0,10);
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true; btn.textContent = 'Speichere …';
-
-  const entry = {
-    id: entryId, type: currentType, gewerk, ort, arbeiten,
-    bauteil: document.getElementById('fBauteil').value.trim(),
-    material: document.getElementById('fMaterial').value.trim(),
-    verantwortlich: document.getElementById('fVerantwortlich').value.trim(),
-    kuerzel: document.getElementById('fKuerzel').value.trim(),
-    datum: document.getElementById('fDatum').value,
-    datumISO: nowIso,
-    sortOrder: Date.now(),
-    photoUrl: currentPhotoPreviewDataUrl,
-    createdAt: Date.now()
-  };
-
-  allEntries.push(entry);
-  renderRecent();
-  resetForm();
-  btn.disabled = false;
-  updateSaveButtonState();
-  idbPutEntry(entry);
-
-  // Foto direkt zum Sichern in die Fotogalerie anbieten
-  saveToGallery(entryId);
-}
-
-function resetForm(){
-  document.getElementById('fGewerk').value='';
-  document.getElementById('fOrt').value='';
-  document.getElementById('fArbeiten').value='';
-  document.getElementById('fMaterial').value='';
-  document.getElementById('fBauteil').value='';
-  document.getElementById('fVerantwortlich').value='';
-  currentPhotoBlob = null;
-  currentPhotoPreviewDataUrl = null;
-  document.getElementById('photoPreview').style.display='none';
-  document.getElementById('photoPlaceholder').style.display='block';
-  document.getElementById('photoInput').value='';
-  setType('doku');
 }
 
 function renderRecent(){
@@ -1385,7 +1460,7 @@ function renderReport(){
       <tr><td class="k">Verfasser</td><td>${escapeHtml(verfasser)}</td></tr>
       <tr><td class="k">Berichts-Nr.</td><td>${berichtsNrPadded}</td></tr>
       <tr><td class="k">Datum</td><td>${escapeHtml(datum)}</td></tr>
-      ${witterung ? `<tr><td class="k">Witterung</td><td>${witterung}</td></tr>` : ''}
+      ${witterung ? `<tr><td class="k">Temperatur</td><td>${witterung}</td></tr>` : ''}
       <tr><td class="k">Seitenanzahl</td><td>${totalPages} Seiten</td></tr>
       <tr><td class="k">Kunde</td><td>${escapeHtml(kunde)}</td></tr>
     </table>
