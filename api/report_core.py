@@ -15,7 +15,7 @@ from PIL import Image
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 EMU_PER_IN = 914400
-MAX_BOX_IN = 3.6
+MAX_BOX_IN = 2.5
 LINE_HEIGHT_PT = 9 * 1.2
 
 
@@ -70,6 +70,24 @@ def format_datum(raw):
         d, mo, y = m.groups()
         return f"{int(d):02d}.{int(mo):02d}.{y}"
     return raw
+
+
+WEEKDAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+
+
+def format_datum_mit_wochentag(raw):
+    """z.B. '08.09.2026' -> 'Di.08.09.2026'"""
+    raw = (raw or '').strip()
+    m = re.match(r'^(\d{1,2})\.(\d{1,2})\.(\d{4})$', raw)
+    if not m:
+        return raw
+    d, mo, y = (int(x) for x in m.groups())
+    try:
+        import datetime
+        wd = WEEKDAYS_DE[datetime.date(y, mo, d).weekday()]
+        return f"{wd}.{d:02d}.{mo:02d}.{y}"
+    except Exception:
+        return f"{d:02d}.{mo:02d}.{y}"
 
 
 def build_text_cell(cell, entry, nr, base_run, image_height_pt):
@@ -234,8 +252,20 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     bk = data.get('berichtskopf', {})
     entries = data.get('entries', [])
     verlauf = data.get('verlauf', [])
+    start_nr = data.get('startNr') or 1
+    try:
+        start_nr = int(start_nr)
+    except (TypeError, ValueError):
+        start_nr = 1
 
     doc = docx.Document(template_path)
+
+    # Referenz auf die Dokumentationstabelle SOFORT einfangen, bevor weiter
+    # unten neue Tabellen/Absätze (Inhaltsverzeichnis, Verlauf) in den
+    # Dokumentkörper eingefügt werden - das würde sonst den Index in
+    # doc.tables verschieben, sodass doc.tables[3] später auf die falsche
+    # (neu eingefügte) Tabelle zeigen würde statt auf die Dokumentationstabelle.
+    dokumentation_table = doc.tables[3]
 
     # Titelüberschrift auf eine Zeile bringen
     for p in doc.paragraphs:
@@ -269,8 +299,14 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     pagebreak_p = None
     heading_ref_rPr = None
     dokumentation_p = None
+    leistung_p = None
+    thema_p = None
     for p in doc.paragraphs:
         t = p.text.strip()
+        if t.startswith('LEISTUNGSFESTELLUNG'):
+            leistung_p = p
+        if t.startswith('Thema:') and thema_p is None:
+            thema_p = p
         if t.startswith('Anlagen'):
             anchor_p = p
         if t in ('Rahmentermine:', 'Dokumentation:'):
@@ -284,13 +320,34 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                     pagebreak_p = p
                     break
 
+    # Etwas Luft auf dem Titelblatt zurückgewinnen, damit für das weiter
+    # unten eingefügte Inhaltsverzeichnis verlässlich Platz bleibt (auch bei
+    # einer vollen Verteilerliste): den recht großzügigen Leerraum vor
+    # "Thema:" sowie die ungenutzten Leerzeilen zwischen "Anlagen:" und dem
+    # Seitenumbruch reduzieren. Betrifft nur leere Absätze, keine Inhalte.
+    if leistung_p is not None and thema_p is not None:
+        blanks = []
+        p = leistung_p._p.getnext()
+        while p is not None and p is not thema_p._p:
+            blanks.append(p)
+            p = p.getnext()
+        for extra in blanks[3:]:
+            extra.getparent().remove(extra)
+    if anchor_p is not None and pagebreak_p is not None:
+        p = anchor_p._p.getnext()
+        while p is not None and p is not pagebreak_p._p:
+            nxt = p.getnext()
+            if not ''.join(p.itertext()).strip():
+                p.getparent().remove(p)
+            p = nxt
+
     if anchor_p is not None and pagebreak_p is not None:
         ref_rpr_xml = (etree.tostring(heading_ref_rPr, encoding='unicode')
                        if heading_ref_rPr is not None
                        else f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>')
 
         toc_heading = parse_xml(f'''<w:p xmlns:w="{W}">
-          <w:pPr><w:spacing w:before="360" w:after="160"/></w:pPr>
+          <w:pPr><w:spacing w:before="160" w:after="120"/></w:pPr>
           <w:r>{ref_rpr_xml}<w:t>Inhaltsverzeichnis</w:t></w:r>
         </w:p>''')
 
@@ -322,14 +379,15 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         pagebreak_p._p.addprevious(toc_field)
 
     # Verlauf vorheriger Berichte (Kurzdarstellung) direkt über der
-    # Dokumentationstabelle einfügen - so bleiben frühere Feststellungen als
-    # kurze Referenzzeile sichtbar, ohne bei jedem neuen Bericht der Reihe
-    # erneut als volle Einträge (samt Fotos) aufzutauchen.
+    # Dokumentationstabelle einfügen - als echte Nr.-Bereich/Zeitraum/
+    # Zusammenfassung-Tabelle (analog zur Vorschau in der App), damit frühere
+    # Feststellungen als kompakte Referenz sichtbar bleiben, ohne bei jedem
+    # neuen Bericht der Reihe erneut als volle Einträge (samt Fotos)
+    # aufzutauchen.
     if verlauf and dokumentation_p is not None:
         vref_rpr_xml = (etree.tostring(heading_ref_rPr, encoding='unicode')
                         if heading_ref_rPr is not None
                         else f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>')
-        vtext_rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
 
         verlauf_heading = parse_xml(f'''<w:p xmlns:w="{W}">
           <w:pPr><w:spacing w:before="120" w:after="80"/></w:pPr>
@@ -337,17 +395,54 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         </w:p>''')
         dokumentation_p._p.addprevious(verlauf_heading)
 
+        sec = doc.sections[0]
+        avail_dxa = sec.page_width.twips - sec.left_margin.twips - sec.right_margin.twips
+        col_nr, col_zeit = 1300, 2600
+        col_zus = avail_dxa - col_nr - col_zeit
+
+        def vcell(text, width, header=False):
+            sz = '18' if not header else '18'
+            bold = '<w:b/>' if header else ''
+            fill = ' <w:shd w:val="clear" w:color="auto" w:fill="EDEBE6"/>' if header else ''
+            return (f'<w:tc><w:tcPr><w:tcW w:w="{width}" w:type="dxa"/>{fill}</w:tcPr>'
+                     f'<w:p><w:r><w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/>{bold}<w:sz w:val="{sz}"/><w:szCs w:val="{sz}"/></w:rPr>'
+                     f'<w:t xml:space="preserve">{xml_escape(text)}</w:t></w:r></w:p></w:tc>')
+
+        rows_xml = '<w:tr>' + vcell('Nr.', col_nr, True) + vcell('Zeitraum', col_zeit, True) + vcell('Zusammenfassung', col_zus, True) + '</w:tr>'
         for v in verlauf:
-            berichtnr = xml_escape(str(v.get('berichtNr', '') or ''))
-            datum = xml_escape(str(v.get('datum', '') or ''))
-            anzahl = v.get('anzahl', '')
-            gewerke = xml_escape(str(v.get('gewerke', '') or ''))
-            zeile = f'Bericht {berichtnr}' + (f' ({datum})' if datum else '') + f': {anzahl} Feststellung' + ('en' if anzahl != 1 else '') + (f' — {gewerke}' if gewerke else '')
-            vline = parse_xml(f'''<w:p xmlns:w="{W}">
-              <w:pPr><w:spacing w:after="40"/></w:pPr>
-              <w:r>{vtext_rpr_xml}<w:t xml:space="preserve">{zeile}</w:t></w:r>
-            </w:p>''')
-            dokumentation_p._p.addprevious(vline)
+            von, bis = v.get('von', ''), v.get('bis', '')
+            nr_text = str(von) if von == bis else f'{von}–{bis}'
+            zvon, zbis = v.get('zeitraumVon', '') or '', v.get('zeitraumBis', '') or ''
+            zeit_text = zvon if zvon == zbis else f'{zvon} – {zbis}'
+            berichtnr = str(v.get('berichtNr', '') or '').zfill(3) if str(v.get('berichtNr', '')).isdigit() else str(v.get('berichtNr', '') or '')
+            zus_text = f"QS-Bericht {berichtnr}: " + (v.get('zusammenfassung', '') or '')
+            rows_xml += '<w:tr>' + vcell(nr_text, col_nr) + vcell(zeit_text, col_zeit) + vcell(zus_text, col_zus) + '</w:tr>'
+
+        verlauf_tbl_xml = f'''<w:tbl xmlns:w="{W}">
+          <w:tblPr>
+            <w:tblW w:w="{avail_dxa}" w:type="dxa"/>
+            <w:tblLayout w:type="fixed"/>
+            <w:tblBorders>
+              <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+              <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+              <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+              <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+              <w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+              <w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+            </w:tblBorders>
+            <w:tblCellMar>
+              <w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/>
+              <w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/>
+            </w:tblCellMar>
+          </w:tblPr>
+          <w:tblGrid><w:gridCol w:w="{col_nr}"/><w:gridCol w:w="{col_zeit}"/><w:gridCol w:w="{col_zus}"/></w:tblGrid>
+          {rows_xml}
+        </w:tbl>'''
+        verlauf_tbl = parse_xml(verlauf_tbl_xml)
+        dokumentation_p._p.addprevious(verlauf_tbl)
+
+        verlauf_spacer = parse_xml(f'<w:p xmlns:w="{W}"><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>')
+        dokumentation_p._p.addprevious(verlauf_spacer)
 
     # Fußzeile: Dateiname (links) und Seitenzahl (rechts) auf eine gemeinsame
     # Zeile bringen. Beides lag bisher in zwei getrennten Absätzen unter-
@@ -442,8 +537,9 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
 
     # Spaltenbreiten-Korrektur (Nr.-Spalte / Bautenstand-Spalte)
     try:
-        set_col_width_dxa(doc.tables[3], 0, 1250)
-        set_col_width_dxa(doc.tables[3], 1, 3712)
+        set_col_width_dxa(dokumentation_table, 0, 1250)
+        set_col_width_dxa(dokumentation_table, 1, 5068)
+        set_col_width_dxa(dokumentation_table, 2, 3888)
     except Exception:
         pass
     try:
@@ -462,9 +558,43 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
             for r in p.runs:
                 r.text = ''
 
-    # Rahmentermine-/Wetter-Beispieldaten leeren
-    clear_data_rows(doc.tables[1])
+    # Rahmentermine-/Wetter-Beispieldaten leeren. header_rows=0 bei der
+    # Wettertabelle, da dort - anders als bei den anderen Tabellen - keine
+    # echte Kopfzeile existiert; alle 3 Zeilen enthalten Datum/Temperatur
+    # (nur die Legenden-Beschriftung je Zeile bleibt automatisch erhalten,
+    # da clear_data_rows Zellen mit exaktem Label-Text ausspart).
+    clear_data_rows(doc.tables[1], header_rows=0)
     clear_data_rows(doc.tables[2])
+
+    # Witterung (Datum/Min./Max.) in die Wetter-/Farblegenden-Tabelle
+    # eintragen - bisher wurden diese Werte zwar in der App gesammelt, aber
+    # nie tatsächlich ins Word-Dokument übernommen.
+    wetter_tbl = doc.tables[1]
+    datum_mit_wochentag = format_datum_mit_wochentag(bk.get('datum', ''))
+    temp_min = (bk.get('tempMin') or '').strip()
+    temp_max = (bk.get('tempMax') or '').strip()
+    for row in wetter_tbl.rows:
+        if datum_mit_wochentag and len(row.cells) > 0:
+            cell = row.cells[0]
+            for p in cell.paragraphs:
+                if p.runs:
+                    p.runs[0].text = datum_mit_wochentag
+                    for r in p.runs[1:]:
+                        r.text = ''
+        if temp_min and len(row.cells) > 1:
+            cell = row.cells[1]
+            value_p = cell.paragraphs[1] if len(cell.paragraphs) > 1 else None
+            if value_p is not None and value_p.runs:
+                value_p.runs[0].text = temp_min
+                for r in value_p.runs[1:]:
+                    r.text = ''
+        if temp_max and len(row.cells) > 2:
+            cell = row.cells[2]
+            value_p = cell.paragraphs[1] if len(cell.paragraphs) > 1 else None
+            if value_p is not None and value_p.runs:
+                value_p.runs[0].text = temp_max
+                for r in value_p.runs[1:]:
+                    r.text = ''
 
     # Rahmentermine-Tabelle befüllen (bisher wurde dieses Feld gesammelt aber
     # nie tatsächlich in die Word-Tabelle geschrieben - Format je Zeile:
@@ -518,8 +648,12 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                 shd.set(qn('w:fill'), fill)
                 tcPr.append(shd)
 
-    # Kopfzeilen: Projektname (Logo wird nie angefasst)
-    projekt_text = (bk.get('projekt', '') + (' — ' + bk['baustelle'] if bk.get('baustelle') else '')).strip(' —')
+    # Kopfzeile: Projektname (Logo wird nie angefasst). Nur das Projekt-Feld
+    # wird angezeigt - eine Verkettung mit der "Baustellenbezeichnung" führte
+    # zu einer sich wiederholenden Darstellung des Baustellen-Kürzels (z. B.
+    # "NFM | München — Neufreimann WA11"), da beide Felder faktisch denselben
+    # Standort beschreiben.
+    projekt_text = bk.get('projekt', '').strip()
     for sec in doc.sections:
         for hdr in (sec.header, sec.first_page_header):
             for p in hdr.paragraphs:
@@ -568,9 +702,17 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                 cell = [c for c in vt.rows[i + 1].cells if c._tc is new_tc][0]
                 r = cell.paragraphs[0].add_run(val)
                 set_run_font(r, vt_base_run)
+        # Ungenutzte, leere Vorlagenzeilen entfernen (die Tabelle ist auf 12
+        # Datenzeilen ausgelegt, unabhängig davon wie viele tatsächlich
+        # gebraucht werden) - das schafft verlässlich Freiraum auf dem
+        # Titelblatt, u. a. damit das Inhaltsverzeichnis dort sicher Platz
+        # hat, auch wenn Word es später auf mehrere Zeilen erweitert.
+        used_rows = min(len(rows_text), len(vt.rows) - 1)
+        for row in list(vt.rows[used_rows + 1:]):
+            vt._tbl.remove(row._tr)
 
     # Dokumentationstabelle
-    table = doc.tables[3]
+    table = dokumentation_table
     tbl = table._tbl
     template_row_tr = copy.deepcopy(table.rows[1]._tr)
     base_run = table.rows[1].cells[1].paragraphs[1].runs[0]
@@ -579,7 +721,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         tbl.remove(r._tr)
 
     os.makedirs(tmp_dir, exist_ok=True)
-    for i, entry in enumerate(entries, start=1):
+    for i, entry in enumerate(entries, start=start_nr):
         new_tr = copy.deepcopy(template_row_tr)
         tbl.append(new_tr)
         row = table.rows[-1]
