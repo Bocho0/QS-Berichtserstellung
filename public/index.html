@@ -101,6 +101,9 @@
   .order-btn{ width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1; border:1px solid var(--line); border-radius:4px; background:var(--white); color:var(--charcoal); cursor:pointer; touch-action:manipulation; }
   .order-btn:active{ background:var(--concrete); }
   .order-btn:disabled{ opacity:0.3; cursor:default; }
+  .wetter-btn{ font-size:11px; font-weight:500; background:none; border:1px solid var(--line); border-radius:3px; padding:2px 6px; margin-left:6px; cursor:pointer; color:var(--muted); }
+  .wetter-btn:hover{ background:var(--concrete); }
+  .wetter-btn:disabled{ opacity:0.5; cursor:default; }
   .edit-actions{ display:flex; gap:8px; align-items:center; margin-top:2px; }
   .report-page{ background:var(--white); border:1px solid var(--line); padding:34px 30px 46px; margin-bottom:16px; position:relative; min-height:400px; font-size:12.5px; color:#000; }
   .rp-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:20px; }
@@ -232,10 +235,14 @@
         <div><label>Baustellenbezeichnung</label><input type="text" id="rBaustelle" placeholder="z. B. Baustelle XY"></div>
         <div><label>Kunde</label><input type="text" id="rKunde" placeholder="Kundenname"></div>
         <div><label>Verfasser (Kürzel)</label><input type="text" id="rVerfasser" placeholder="z. B. NFM"></div>
-        <div><label>Datum Bericht</label><input type="text" id="rDatum"></div>
+        <div><label>Datum Bericht</label><input type="text" id="rDatum" placeholder="TT.MM.JJJJ"></div>
         <div><label>Berichts-Nr.</label><input type="number" id="rBerichtsNr" placeholder="z. B. 1" min="1"></div>
-        <div><label>Witterung Min.</label><input type="text" id="rTempMin" placeholder="z. B. 16°C"></div>
+        <div>
+          <label>Witterung Min. <button type="button" class="wetter-btn" onclick="fetchWeatherForDate()" title="Wetter für das eingetragene Datum automatisch ermitteln">🌤️ automatisch</button></label>
+          <input type="text" id="rTempMin" placeholder="z. B. 16°C">
+        </div>
         <div><label>Witterung Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22°C"></div>
+        <div class="full" id="wetterStatus" style="font-size:12px;color:var(--muted);display:none;"></div>
         <div class="full"><label>Dateiname (Fußzeile)</label><input type="text" id="rDateiname" placeholder="z. B. 260731_NFM-QS-Bautenstand_005.docx"></div>
       </div>
       <label>Firmenlogo <span style="font-weight:400;color:var(--muted)">(optional, nur für diese Sitzung)</span></label>
@@ -274,11 +281,8 @@ Status-Werte: im-termin | nicht-kritisch | plus2 | plus4</div></details>
       <button class="btn-primary" onclick="generateWordReport()" id="genWordBtn">Word-Bericht erstellen</button>
       <div class="hint" id="genWordHint">Erstellt die fertige Word-Datei direkt hier, im exakten Vorlagenformat — kein Chat-Umweg nötig.</div>
 
-      <details class="help" style="margin-top:14px">
-        <summary>Alternative: Rohdaten für den Chat mit Claude herunterladen</summary>
-        <div class="ex">Falls die Word-Erstellung oben einmal nicht erreichbar ist, kannst du die Daten stattdessen als Datei herunterladen und sie in einem Chat bei Claude hochladen.</div>
-        <button class="btn-secondary small" style="margin-top:8px" onclick="exportForWordReport()">Berichtsdaten herunterladen (.json)</button>
-      </details>
+      <button class="btn-primary" onclick="exportForWordReport()" id="genJsonBtn">Berichtsdaten herunterladen (.json)</button>
+      <div class="hint">Zum Fortführen dieser Baustelle beim nächsten Termin oder im nächsten Bericht wieder hochladen (Tab „Erfassen" → „Vorherige Sitzung laden") — dient außerdem als Sicherung und lässt sich alternativ im Chat mit Claude zu einem Word-Bericht verarbeiten.</div>
 
       <details class="help" style="margin-top:14px">
         <summary>Sammlung vollständig abschließen (Zwischenspeicher leeren)</summary>
@@ -386,7 +390,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen','rDateiname'];
 
 async function idbPutMeta(key, value){
   try{
@@ -508,11 +512,88 @@ document.getElementById('logoPreview').style.display = 'inline-block';
 
 function updateHeaderProj(){
   const p = document.getElementById('rProjekt').value.trim() || 'XY | München';
-  const b = document.getElementById('rBaustelle').value.trim() || 'Baustelle XY';
-  document.getElementById('headerProj').textContent = p + ' — ' + b;
+  document.getElementById('headerProj').textContent = p;
 }
 document.getElementById('rProjekt').addEventListener('input', updateHeaderProj);
 document.getElementById('rBaustelle').addEventListener('input', updateHeaderProj);
+
+// ===================== Witterung automatisch ermitteln =====================
+// Nutzt die kostenlose Open-Meteo API (kein Schlüssel nötig): zuerst den
+// Ort geokodieren, dann die historischen Tageswerte für das eingetragene
+// Datum abrufen. Ort wird aus dem Projekt-Feld abgeleitet (Teil nach dem
+// letzten "|", z. B. "München" aus "NFM | München").
+function parseGermanDateToISO(str){
+  const m = (str || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+
+function guessLocationName(){
+  const projekt = document.getElementById('rProjekt').value.trim();
+  if(projekt.includes('|')){
+    const parts = projekt.split('|');
+    return parts[parts.length - 1].trim();
+  }
+  return projekt || document.getElementById('rBaustelle').value.trim();
+}
+
+async function fetchWeatherForDate(){
+  const statusEl = document.getElementById('wetterStatus');
+  const showStatus = (msg) => { statusEl.style.display = 'block'; statusEl.textContent = msg; };
+
+  const isoDate = parseGermanDateToISO(document.getElementById('rDatum').value);
+  if(!isoDate){
+    showStatus('Witterung: Bitte zuerst ein gültiges Datum im Format TT.MM.JJJJ eintragen.');
+    return;
+  }
+  const location = guessLocationName();
+  if(!location){
+    showStatus('Witterung: Bitte zuerst Projekt/Baustelle (Ort) eintragen, damit der Standort bestimmt werden kann.');
+    return;
+  }
+
+  showStatus('Witterung wird für ' + location + ' ermittelt …');
+  try{
+    const geoRes = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(location) + '&count=1&language=de&format=json');
+    if(!geoRes.ok) throw new Error('Geokodierung fehlgeschlagen (' + geoRes.status + ')');
+    const geo = await geoRes.json();
+    if(!geo.results || !geo.results.length){
+      showStatus('Witterung: Ort "' + location + '" nicht gefunden — bitte manuell eintragen.');
+      return;
+    }
+    const { latitude, longitude, name } = geo.results[0];
+
+    const wUrl = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + latitude + '&longitude=' + longitude +
+      '&start_date=' + isoDate + '&end_date=' + isoDate + '&daily=temperature_2m_max,temperature_2m_min&timezone=auto';
+    const wRes = await fetch(wUrl);
+    if(!wRes.ok) throw new Error('Wetterabruf fehlgeschlagen (' + wRes.status + ')');
+    const wdata = await wRes.json();
+    const tMax = wdata.daily && wdata.daily.temperature_2m_max && wdata.daily.temperature_2m_max[0];
+    const tMin = wdata.daily && wdata.daily.temperature_2m_min && wdata.daily.temperature_2m_min[0];
+    if(tMax === undefined || tMin === undefined || tMax === null || tMin === null){
+      showStatus('Witterung: Für dieses Datum liegen keine Daten vor (z. B. weil es in der Zukunft liegt) — bitte manuell eintragen.');
+      return;
+    }
+    document.getElementById('rTempMin').value = Math.round(tMin) + '°C';
+    document.getElementById('rTempMax').value = Math.round(tMax) + '°C';
+    scheduleBerichtskopfSave();
+    refreshReportViews();
+    showStatus('Witterung für ' + name + ' am ' + document.getElementById('rDatum').value + ' übernommen (Quelle: Open-Meteo). Bei Bedarf hier manuell anpassen.');
+  }catch(err){
+    console.error(err);
+    showStatus('Witterung konnte nicht automatisch ermittelt werden — bitte manuell eintragen.');
+  }
+}
+
+// Beim Verlassen des Datumsfelds automatisch versuchen, sofern die
+// Witterungsfelder noch leer sind (manuell eingetragene Werte werden nie
+// überschrieben).
+document.getElementById('rDatum').addEventListener('blur', () => {
+  if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim()){
+    fetchWeatherForDate();
+  }
+});
 updateHeaderProj();
 
 function setConnStatus(ok, text){
@@ -582,10 +663,12 @@ async function generateWordReport(){
       tempMin: document.getElementById('rTempMin').value,
       tempMax: document.getElementById('rTempMax').value,
       verteiler: document.getElementById('rVerteiler').value,
-      rahmentermine: document.getElementById('rRahmen').value
+      rahmentermine: document.getElementById('rRahmen').value,
+      dateiname: document.getElementById('rDateiname').value.trim()
     },
     entries: allEntries,
-    verlauf: verlaufEntries
+    verlauf: verlaufEntries,
+    startNr: getStartNr()
   };
 
   // Vercel begrenzt Anfrage UND Antwort von Functions hart auf 4,5 MB - bei
@@ -649,10 +732,12 @@ function exportForWordReport(){
       tempMin: document.getElementById('rTempMin').value,
       tempMax: document.getElementById('rTempMax').value,
       verteiler: document.getElementById('rVerteiler').value,
-      rahmentermine: document.getElementById('rRahmen').value
+      rahmentermine: document.getElementById('rRahmen').value,
+      dateiname: document.getElementById('rDateiname').value.trim()
     },
     entries: allEntries,
-    verlauf: verlaufEntries
+    verlauf: verlaufEntries,
+    startNr: getStartNr()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -682,44 +767,59 @@ async function importContinueFile(e){
     // desselben Berichts (z. B. zweiter Termin derselben Begehung).
     const isNewReportInReihe = !berichtsNrEl.value.trim() && !!(bk.berichtsNr || '').toString().trim();
 
-    // Verlauf aus der Datei immer mit uebernehmen (Kette darf ueber mehrere
-    // Berichte hinweg mitwachsen), unabhaengig vom Fall unten.
-    importedVerlauf.forEach(v => {
-      if(!verlaufEntries.some(x => x.berichtNr === v.berichtNr && x.datum === v.datum)) verlaufEntries.push(v);
-    });
-
     if(isNewReportInReihe){
       // Neuer Bericht in der Reihe: Die Feststellungen aus der Datei gehören
       // zum VORHERIGEN, bereits abgeschlossenen Bericht und werden deshalb
       // NICHT als bearbeitbare Einzeleinträge übernommen - stattdessen nur
-      // als kurze Verlaufszeile über den neuen Feststellungen festgehalten.
-      // Die Berichts-Nr. wird automatisch weitergezählt.
+      // als kurze Verlaufszeile (Nr.-Bereich; Zeitraum; Zusammenfassung)
+      // über den neuen Feststellungen festgehalten. Die neue Berichts-Nr.
+      // wird automatisch weitergezählt, ebenso die Feststellungsnummerierung
+      // (fängt NICHT wieder bei 1 an, sondern setzt die Reihe fort).
       const oldNr = parseInt(bk.berichtsNr, 10);
       const newNr = isNaN(oldNr) ? '' : String(oldNr + 1);
       if(newNr) berichtsNrEl.value = newNr;
 
+      // Die Nr., mit der der ALTE (jetzt importierte) Bericht selbst einmal
+      // begonnen hatte, ergibt sich aus DESSEN eigenem Verlauf - nicht aus
+      // dem hier bereits vorhandenen (der gehört zu diesem neuen Bericht).
+      const oldStartNr = importedVerlauf.length ? Math.max(...importedVerlauf.map(v => v.bis || 0)) + 1 : 1;
+
+      importedVerlauf.forEach(v => {
+        if(!verlaufEntries.some(x => x.von === v.von && x.bis === v.bis)) verlaufEntries.push(v);
+      });
+
       if(importedEntries.length > 0){
         const gewerke = [...new Set(importedEntries.map(x => (x.gewerk||'').trim()).filter(Boolean))];
+        const dates = importedEntries.map(x => x.datum).filter(Boolean)
+          .sort((a,b) => (parseGermanDateSortable(a)||'').localeCompare(parseGermanDateSortable(b)||''));
         verlaufEntries.push({
           id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
           berichtNr: (bk.berichtsNr || '').toString(),
-          datum: bk.datum || '',
-          anzahl: importedEntries.length,
-          gewerke: gewerke.join(', ')
+          von: oldStartNr,
+          bis: oldStartNr + importedEntries.length - 1,
+          zeitraumVon: dates[0] || bk.datum || '',
+          zeitraumBis: dates[dates.length-1] || bk.datum || '',
+          zusammenfassung: gewerke.join(', ')
         });
       }
       renderVerlauf();
       idbPutMeta('verlauf', verlaufEntries);
 
-      setConnStatus(true, 'Neuer Bericht (Nr. ' + (newNr || '?') + ') angelegt — ' + importedEntries.length + ' Feststellungen aus Bericht ' + (bk.berichtsNr || '?') + ' als Kurzdarstellung im Verlauf übernommen.');
+      const range = importedEntries.length > 1 ? `${oldStartNr}–${oldStartNr + importedEntries.length - 1}` : String(oldStartNr);
+      setConnStatus(true, 'Neuer Bericht (Nr. ' + (newNr || '?') + ') angelegt — Feststellungen ' + range + ' aus Bericht ' + (bk.berichtsNr || '?') + ' als Kurzdarstellung im Verlauf übernommen. Die nächste Feststellung erhält automatisch Nr. ' + getStartNr() + '.');
     } else {
       // Gleicher Bericht wird fortgesetzt: Einträge wie bisher zusammenführen
-      // (bereits vorhandene IDs bleiben unangetastet, neue kommen dazu).
+      // (bereits vorhandene IDs bleiben unangetastet, neue kommen dazu); der
+      // mitgelieferte Verlauf (falls vorhanden) wird ebenfalls übernommen.
       const map = new Map(allEntries.map(x => [x.id, x]));
       importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
       allEntries = Array.from(map.values());
       renderRecent();
       importedEntries.forEach(x => idbPutEntry(x));
+
+      importedVerlauf.forEach(v => {
+        if(!verlaufEntries.some(x => x.von === v.von && x.bis === v.bis)) verlaufEntries.push(v);
+      });
       if(importedVerlauf.length){ renderVerlauf(); idbPutMeta('verlauf', verlaufEntries); }
 
       setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
@@ -1042,18 +1142,35 @@ function renderVerlauf(){
     box.innerHTML = '<div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div>';
     return;
   }
-  box.innerHTML = verlaufEntries.map(v => `
+  box.innerHTML = verlaufEntries.map(v => {
+    const range = (v.von === v.bis) ? String(v.von) : `${v.von}–${v.bis}`;
+    const zeitraum = v.zeitraumVon === v.zeitraumBis ? v.zeitraumVon : `${v.zeitraumVon} – ${v.zeitraumBis}`;
+    return `
     <div class="verlauf-line" data-id="${v.id}">
-      <span class="vtxt"><b>Bericht ${escapeHtml(v.berichtNr || '?')}</b>${v.datum ? ' (' + escapeHtml(v.datum) + ')' : ''}: ${v.anzahl} Feststellung${v.anzahl === 1 ? '' : 'en'}${v.gewerke ? ' — ' + escapeHtml(v.gewerke) : ''}</span>
+      <span class="vtxt"><b>Nr. ${escapeHtml(range)}</b> · ${escapeHtml(zeitraum || '')} · Bericht ${escapeHtml(v.berichtNr || '?')}: ${escapeHtml(v.zusammenfassung || '')}</span>
       <button type="button" onclick="deleteVerlaufLine('${v.id}')" title="Zeile entfernen">✕</button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function deleteVerlaufLine(id){
   verlaufEntries = verlaufEntries.filter(v => v.id !== id);
   renderVerlauf();
   idbPutMeta('verlauf', verlaufEntries);
+}
+
+// Fortlaufende Nummerierung über die gesamte Berichtsreihe hinweg: die
+// naechste freie Nr. ergibt sich aus dem hoechsten "bis"-Wert im Verlauf
+// (oder 1, wenn die Reihe gerade erst beginnt).
+function getStartNr(){
+  if(!verlaufEntries.length) return 1;
+  return Math.max(...verlaufEntries.map(v => v.bis || 0)) + 1;
+}
+
+function parseGermanDateSortable(str){
+  const m = (str || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(!m) return null;
+  return m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0');
 }
 
 function escapeHtml(s){
@@ -1152,14 +1269,6 @@ function renderReport(){
   const doku = allEntries.filter(e=>e.type==='doku').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
   const veranl = allEntries.filter(e=>e.type==='veranlassung').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
 
-  const weekGroups = [];
-  doku.forEach((e, idx) => {
-    const wk = isoWeekLabel(e.datumISO || e.datum);
-    let grp = weekGroups.find(g => g.wk === wk);
-    if(!grp){ grp = { wk, startIdx: idx, endIdx: idx, firstDate: e.datum }; weekGroups.push(grp); }
-    grp.endIdx = idx;
-  });
-
   const pages = [];
   const toc = [];
   let pageCounter = 2;
@@ -1186,18 +1295,19 @@ function renderReport(){
   }
 
   let dokuBody = `<h3 class="section">Dokumentation</h3>`;
+  if(verlaufEntries.length){
+    dokuBody += `<table class="doku-index"><tr><th style="width:70px">Nr.</th><th style="width:160px">Zeitraum</th><th>Zusammenfassung</th></tr>`;
+    verlaufEntries.forEach(v => {
+      const range = (v.von === v.bis) ? String(v.von) : `${v.von}–${v.bis}`;
+      const zeitraum = v.zeitraumVon === v.zeitraumBis ? v.zeitraumVon : `${v.zeitraumVon} – ${v.zeitraumBis}`;
+      dokuBody += `<tr><td>${escapeHtml(range)}</td><td>QS-Bericht ${escapeHtml(String(v.berichtNr).padStart(3,'0'))} vom ${escapeHtml(zeitraum||'')}</td><td>${escapeHtml(v.zusammenfassung||'')}</td></tr>`;
+    });
+    dokuBody += `</table>`;
+  }
+  const startNr = getStartNr();
   if(doku.length===0){
     dokuBody += `<div class="empty">Keine Dokumentations-Einträge vorhanden.</div>`;
   }else{
-    dokuBody += `<table class="doku-index"><tr><th style="width:70px">Nr.</th><th style="width:140px">Zeitraum</th><th>Zusammenfassung</th></tr>`;
-    weekGroups.forEach((g, gi) => {
-      const items = doku.slice(g.startIdx, g.endIdx+1);
-      const gewerke = [...new Set(items.map(e=>e.gewerk))].join(', ');
-      const range = g.startIdx+1 === g.endIdx+1 ? (g.startIdx+1) : (g.startIdx+1)+'-'+(g.endIdx+1);
-      dokuBody += `<tr><td>${range}</td><td>QS-Bericht ${String(gi+1).padStart(3,'0')} vom ${g.firstDate}</td><td>${escapeHtml(gewerke)}</td></tr>`;
-    });
-    dokuBody += `</table>`;
-
     let lastDate = null;
     doku.forEach((e, i) => {
       if(e.datum !== lastDate){
@@ -1207,7 +1317,7 @@ function renderReport(){
       dokuBody += `
       <div class="entry">
         <div>
-          <div class="num">${i+1}</div>
+          <div class="num">${startNr + i}</div>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
           <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
           ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
