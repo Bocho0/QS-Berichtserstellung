@@ -15,8 +15,14 @@ from PIL import Image
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 EMU_PER_IN = 914400
-MAX_BOX_IN = 2.5
+MAX_BOX_IN = 2.4
 LINE_HEIGHT_PT = 9 * 1.2
+# Feste Ziel-Zeilenhöhe pro Feststellung (statt variabel je nach Fototyp/
+# Textlänge) - so passen zuverlässig immer genau 3 Feststellungen auf eine
+# Seite, unabhängig davon ob das Foto quer/hoch ist oder der Info-Text kurz
+# oder etwas länger. Ergibt sich aus dem nutzbaren Seitenbereich (~9,1")
+# geteilt durch 3, mit kleiner Sicherheitsmarge.
+FIXED_ROW_HEIGHT_PT = 208
 
 
 def w(tag):
@@ -114,7 +120,7 @@ def build_text_cell(cell, entry, nr, base_run, image_height_pt):
 
     FINE_TUNE_PT = 6
     used_pt = 16 + line_count * LINE_HEIGHT_PT
-    space_before = max(14, image_height_pt + 16 - used_pt - LINE_HEIGHT_PT - FINE_TUNE_PT)
+    space_before = max(14, FIXED_ROW_HEIGHT_PT - used_pt - LINE_HEIGHT_PT - FINE_TUNE_PT)
     p_stand = add_line(cell, f"Stand:{format_datum(entry.get('datum',''))}", base_run)
     p_stand.paragraph_format.space_before = Pt(space_before)
 
@@ -299,6 +305,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     pagebreak_p = None
     heading_ref_rPr = None
     dokumentation_p = None
+    rahmentermine_p = None
     leistung_p = None
     thema_p = None
     for p in doc.paragraphs:
@@ -314,11 +321,30 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
             if t == 'Dokumentation:' and p.runs:
                 heading_ref_rPr = p.runs[0]._r.find(qn('w:rPr'))
                 dokumentation_p = p
+            if t == 'Rahmentermine:':
+                rahmentermine_p = p
         if pagebreak_p is None:
             for br in p._p.findall('.//' + qn('w:br')):
                 if br.get(qn('w:type')) == 'page':
                     pagebreak_p = p
                     break
+
+    def add_bookmark(paragraph, name, bm_id):
+        p_el = paragraph._p
+        pPr = p_el.find(qn('w:pPr'))
+        start = parse_xml(f'<w:bookmarkStart xmlns:w="{W}" w:id="{bm_id}" w:name="{name}"/>')
+        end = parse_xml(f'<w:bookmarkEnd xmlns:w="{W}" w:id="{bm_id}"/>')
+        if pPr is not None:
+            pPr.addnext(end)
+            pPr.addnext(start)
+        else:
+            p_el.insert(0, end)
+            p_el.insert(0, start)
+
+    if rahmentermine_p is not None:
+        add_bookmark(rahmentermine_p, 'bm_rahmentermine', 901)
+    if dokumentation_p is not None:
+        add_bookmark(dokumentation_p, 'bm_dokumentation', 902)
 
     # Etwas Luft auf dem Titelblatt zurückgewinnen, damit für das weiter
     # unten eingefügte Inhaltsverzeichnis verlässlich Platz bleibt (auch bei
@@ -345,38 +371,65 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         ref_rpr_xml = (etree.tostring(heading_ref_rPr, encoding='unicode')
                        if heading_ref_rPr is not None
                        else f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>')
+        toc_text_rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
 
         toc_heading = parse_xml(f'''<w:p xmlns:w="{W}">
-          <w:pPr><w:spacing w:before="160" w:after="120"/></w:pPr>
+          <w:pPr><w:spacing w:before="160" w:after="100"/></w:pPr>
           <w:r>{ref_rpr_xml}<w:t>Inhaltsverzeichnis</w:t></w:r>
         </w:p>''')
-
-        toc_field = parse_xml(f'''<w:p xmlns:w="{W}">
-          <w:pPr><w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr></w:pPr>
-          <w:r>
-            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:noProof/></w:rPr>
-            <w:fldChar w:fldCharType="begin" w:dirty="true"/>
-          </w:r>
-          <w:r>
-            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>
-            <w:instrText xml:space="preserve"> TOC \\o "1-1" \\h \\z \\u </w:instrText>
-          </w:r>
-          <w:r>
-            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:noProof/></w:rPr>
-            <w:fldChar w:fldCharType="separate"/>
-          </w:r>
-          <w:r>
-            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:i/><w:noProof/></w:rPr>
-            <w:t>Wird beim Öffnen automatisch befüllt (ggf. Rechtsklick → Felder aktualisieren).</w:t>
-          </w:r>
-          <w:r>
-            <w:rPr><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:noProof/></w:rPr>
-            <w:fldChar w:fldCharType="end"/>
-          </w:r>
-        </w:p>''')
-
         pagebreak_p._p.addprevious(toc_heading)
-        pagebreak_p._p.addprevious(toc_field)
+
+        sec = doc.sections[0]
+        avail_dxa = sec.page_width.twips - sec.left_margin.twips - sec.right_margin.twips
+
+        # Einzelne PAGEREF-Felder (statt eines komplexen TOC-Sammelfelds) -
+        # diese beziehen sich direkt auf eine Textmarke an der jeweiligen
+        # Überschrift und werden von Word deutlich zuverlässiger aktualisiert
+        # als ein automatisch generiertes Inhaltsverzeichnis.
+        def make_toc_line(label, bookmark_name):
+            return parse_xml(f'''<w:p xmlns:w="{W}">
+              <w:pPr>
+                <w:tabs><w:tab w:val="right" w:leader="dot" w:pos="{avail_dxa}"/></w:tabs>
+                <w:spacing w:after="40"/>
+              </w:pPr>
+              <w:r>{toc_text_rpr_xml}<w:t xml:space="preserve">{xml_escape(label)}</w:t></w:r>
+              <w:r>{toc_text_rpr_xml}<w:tab/></w:r>
+              <w:r>{toc_text_rpr_xml}<w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>
+              <w:r>{toc_text_rpr_xml}<w:instrText xml:space="preserve"> PAGEREF {bookmark_name} \\h </w:instrText></w:r>
+              <w:r>{toc_text_rpr_xml}<w:fldChar w:fldCharType="separate"/></w:r>
+              <w:r>{toc_text_rpr_xml}<w:t>2</w:t></w:r>
+              <w:r>{toc_text_rpr_xml}<w:fldChar w:fldCharType="end"/></w:r>
+            </w:p>''')
+
+        pagebreak_p._p.addprevious(make_toc_line('Rahmentermine', 'bm_rahmentermine'))
+        pagebreak_p._p.addprevious(make_toc_line('Dokumentation', 'bm_dokumentation'))
+
+        # Etwas Abstand zur abschließenden Trennlinie der Titelseite
+        # ergänzen, damit das Inhaltsverzeichnis die Seite bündiger
+        # abschließt. Die Trennlinie selbst lag bisher in einer FIXEN
+        # Fußzeile (immer am selben Abstand von der Seitenunterkante,
+        # unabhängig vom Textinhalt) - das hieß, sie konnte NIE "bündig"
+        # zum tatsächlichen Inhalt stehen, sondern es blieb je nach
+        # Titelblattinhalt eine unterschiedlich große Lücke. Deshalb wird
+        # die Linie hier stattdessen direkt an den Inhalt gehängt (als
+        # Absatzrahmen oben, exakt im selben Stil wie die bisherige
+        # Fußzeilen-Linie), und aus der Fußzeile entfernt, damit nicht zwei
+        # Linien übereinander erscheinen.
+        toc_bottom_spacer = parse_xml(f'''<w:p xmlns:w="{W}">
+          <w:pPr>
+            <w:spacing w:before="200"/>
+            <w:pBdr><w:top w:val="single" w:sz="4" w:space="1" w:color="auto"/></w:pBdr>
+          </w:pPr>
+        </w:p>''')
+        pagebreak_p._p.addprevious(toc_bottom_spacer)
+
+        first_page_footer = doc.sections[0].first_page_footer
+        for fp in first_page_footer.paragraphs:
+            fpPr = fp._p.find(qn('w:pPr'))
+            if fpPr is not None:
+                old_bdr = fpPr.find(qn('w:pBdr'))
+                if old_bdr is not None:
+                    fpPr.remove(old_bdr)
 
     # Verlauf vorheriger Berichte (Kurzdarstellung) direkt über der
     # Dokumentationstabelle einfügen - als echte Nr.-Bereich/Zeitraum/
@@ -441,7 +494,12 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         verlauf_tbl = parse_xml(verlauf_tbl_xml)
         dokumentation_p._p.addprevious(verlauf_tbl)
 
-        verlauf_spacer = parse_xml(f'<w:p xmlns:w="{W}"><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>')
+        # Seitenumbruch nach der Verlaufstabelle: Die Dokumentationstabelle
+        # soll immer die volle Seitenhöhe zur Verfügung haben, damit
+        # zuverlässig 3 Feststellungen pro Seite passen (mit der
+        # Verlaufstabelle auf derselben Seite blieb sonst weniger Platz
+        # übrig und nur 2 passten).
+        verlauf_spacer = parse_xml(f'<w:p xmlns:w="{W}"><w:r><w:br w:type="page"/></w:r></w:p>')
         dokumentation_p._p.addprevious(verlauf_spacer)
 
     # Fußzeile: Dateiname (links) und Seitenzahl (rechts) auf eine gemeinsame
