@@ -236,7 +236,10 @@
         <div><label>Kunde</label><input type="text" id="rKunde" placeholder="Kundenname"></div>
         <div><label>Verfasser (Kürzel)</label><input type="text" id="rVerfasser" placeholder="z. B. NFM"></div>
         <div><label>Datum Bericht</label><input type="text" id="rDatum" placeholder="TT.MM.JJJJ"></div>
-        <div><label>Berichts-Nr.</label><input type="number" id="rBerichtsNr" placeholder="z. B. 1" min="1"></div>
+        <div>
+          <label>Berichts-Nr. <button type="button" class="wetter-btn" onclick="startNewReportInReihe()" title="Aktuelle Feststellungen als Kurzdarstellung ablegen und Berichts-Nr. erhöhen">➜ neuer Bericht</button></label>
+          <input type="number" id="rBerichtsNr" placeholder="z. B. 1" min="1">
+        </div>
         <div>
           <label>Witterung Min. <button type="button" class="wetter-btn" onclick="fetchWeatherForDate()" title="Wetter für das eingetragene Datum automatisch ermitteln">🌤️ automatisch</button></label>
           <input type="text" id="rTempMin" placeholder="z. B. 16°C">
@@ -761,73 +764,28 @@ async function importContinueFile(e){
     const importedVerlauf = Array.isArray(data.verlauf) ? data.verlauf : [];
     const bk = data.berichtskopf || {};
 
-    const berichtsNrEl = document.getElementById('rBerichtsNr');
-    // Erkennung: neuer Bericht in einer Berichtsreihe (Berichts-Nr.-Feld noch
-    // leer, Datei bringt eine eigene Berichts-Nr. mit) vs. Fortsetzung
-    // desselben Berichts (z. B. zweiter Termin derselben Begehung).
-    const isNewReportInReihe = !berichtsNrEl.value.trim() && !!(bk.berichtsNr || '').toString().trim();
+    // Eine JSON-Datei laden bedeutet immer: diese Sammlung fortsetzen
+    // (bereits vorhandene IDs bleiben unangetastet, neue Feststellungen
+    // sowie ein mitgelieferter Verlauf kommen dazu). Einen NEUEN Bericht in
+    // der Reihe beginnt man stattdessen bewusst über den Button "➜ neuer
+    // Bericht" neben der Berichts-Nr. - das war zuvor eine automatische,
+    // für den Nutzer nicht nachvollziehbare Erkennung anhand eines leeren
+    // Felds und funktionierte in der Praxis nicht zuverlässig.
+    const map = new Map(allEntries.map(x => [x.id, x]));
+    importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
+    allEntries = Array.from(map.values());
+    renderRecent();
+    importedEntries.forEach(x => idbPutEntry(x));
 
-    if(isNewReportInReihe){
-      // Neuer Bericht in der Reihe: Die Feststellungen aus der Datei gehören
-      // zum VORHERIGEN, bereits abgeschlossenen Bericht und werden deshalb
-      // NICHT als bearbeitbare Einzeleinträge übernommen - stattdessen nur
-      // als kurze Verlaufszeile (Nr.-Bereich; Zeitraum; Zusammenfassung)
-      // über den neuen Feststellungen festgehalten. Die neue Berichts-Nr.
-      // wird automatisch weitergezählt, ebenso die Feststellungsnummerierung
-      // (fängt NICHT wieder bei 1 an, sondern setzt die Reihe fort).
-      const oldNr = parseInt(bk.berichtsNr, 10);
-      const newNr = isNaN(oldNr) ? '' : String(oldNr + 1);
-      if(newNr) berichtsNrEl.value = newNr;
+    importedVerlauf.forEach(v => {
+      if(!verlaufEntries.some(x => x.von === v.von && x.bis === v.bis)) verlaufEntries.push(v);
+    });
+    if(importedVerlauf.length){ renderVerlauf(); idbPutMeta('verlauf', verlaufEntries); }
 
-      // Die Nr., mit der der ALTE (jetzt importierte) Bericht selbst einmal
-      // begonnen hatte, ergibt sich aus DESSEN eigenem Verlauf - nicht aus
-      // dem hier bereits vorhandenen (der gehört zu diesem neuen Bericht).
-      const oldStartNr = importedVerlauf.length ? Math.max(...importedVerlauf.map(v => v.bis || 0)) + 1 : 1;
-
-      importedVerlauf.forEach(v => {
-        if(!verlaufEntries.some(x => x.von === v.von && x.bis === v.bis)) verlaufEntries.push(v);
-      });
-
-      if(importedEntries.length > 0){
-        const gewerke = [...new Set(importedEntries.map(x => (x.gewerk||'').trim()).filter(Boolean))];
-        const dates = importedEntries.map(x => x.datum).filter(Boolean)
-          .sort((a,b) => (parseGermanDateSortable(a)||'').localeCompare(parseGermanDateSortable(b)||''));
-        verlaufEntries.push({
-          id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-          berichtNr: (bk.berichtsNr || '').toString(),
-          von: oldStartNr,
-          bis: oldStartNr + importedEntries.length - 1,
-          zeitraumVon: dates[0] || bk.datum || '',
-          zeitraumBis: dates[dates.length-1] || bk.datum || '',
-          zusammenfassung: gewerke.join(', ')
-        });
-      }
-      renderVerlauf();
-      idbPutMeta('verlauf', verlaufEntries);
-
-      const range = importedEntries.length > 1 ? `${oldStartNr}–${oldStartNr + importedEntries.length - 1}` : String(oldStartNr);
-      setConnStatus(true, 'Neuer Bericht (Nr. ' + (newNr || '?') + ') angelegt — Feststellungen ' + range + ' aus Bericht ' + (bk.berichtsNr || '?') + ' als Kurzdarstellung im Verlauf übernommen. Die nächste Feststellung erhält automatisch Nr. ' + getStartNr() + '.');
-    } else {
-      // Gleicher Bericht wird fortgesetzt: Einträge wie bisher zusammenführen
-      // (bereits vorhandene IDs bleiben unangetastet, neue kommen dazu); der
-      // mitgelieferte Verlauf (falls vorhanden) wird ebenfalls übernommen.
-      const map = new Map(allEntries.map(x => [x.id, x]));
-      importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
-      allEntries = Array.from(map.values());
-      renderRecent();
-      importedEntries.forEach(x => idbPutEntry(x));
-
-      importedVerlauf.forEach(v => {
-        if(!verlaufEntries.some(x => x.von === v.von && x.bis === v.bis)) verlaufEntries.push(v);
-      });
-      if(importedVerlauf.length){ renderVerlauf(); idbPutMeta('verlauf', verlaufEntries); }
-
-      setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
-    }
+    setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
 
     // Berichtskopf nur uebernehmen, wenn die Felder noch leer sind (eigene,
-    // bereits eingetragene Werte in dieser Sitzung nicht ueberschreiben) -
-    // die Berichts-Nr. wurde oben je nach Fall bereits gesondert behandelt.
+    // bereits eingetragene Werte in dieser Sitzung nicht ueberschreiben).
     if(data.berichtskopf){
       const setIfEmpty = (id, val) => {
         const el = document.getElementById(id);
@@ -837,7 +795,7 @@ async function importContinueFile(e){
       setIfEmpty('rBaustelle', bk.baustelle);
       setIfEmpty('rKunde', bk.kunde);
       setIfEmpty('rVerfasser', bk.verfasser);
-      if(!isNewReportInReihe) setIfEmpty('rBerichtsNr', bk.berichtsNr);
+      setIfEmpty('rBerichtsNr', bk.berichtsNr);
       setIfEmpty('rVerteiler', bk.verteiler);
       setIfEmpty('rRahmen', bk.rahmentermine);
       updateHeaderProj();
@@ -851,6 +809,7 @@ async function importContinueFile(e){
   }
   e.target.value = '';
 }
+
 
 let currentType = 'doku';
 let currentPhotoBlob = null;
@@ -1171,6 +1130,64 @@ function parseGermanDateSortable(str){
   const m = (str || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if(!m) return null;
   return m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0');
+}
+
+// Expliziter, verlässlicher Weg, einen neuen Bericht in der Reihe zu
+// beginnen (statt der bisherigen Erkennung anhand eines leeren Feldes beim
+// JSON-Import, die in der Praxis zu unklar war). Die aktuell erfassten
+// Dokumentations-Feststellungen werden als Kurzdarstellung im Verlauf
+// abgelegt, die Berichts-Nr. wird um 1 erhöht, Deckblatt-Daten (Projekt,
+// Kunde, Verteiler, Rahmentermine) bleiben unangetastet erhalten. Nur
+// "Dokumentation"-Einträge zählen für die Nr.-Fortführung - Veranlassungen
+// bekommen im Bericht ohnehin Buchstaben (A/B/C) statt Nummern.
+function startNewReportInReihe(){
+  const berichtsNrEl = document.getElementById('rBerichtsNr');
+  const currentNr = berichtsNrEl.value.trim();
+  const dokuEntries = allEntries.filter(e => e.type === 'doku');
+
+  if(!dokuEntries.length){
+    alert('Es sind noch keine Dokumentations-Feststellungen erfasst, die archiviert werden könnten.');
+    return;
+  }
+  if(!currentNr){
+    alert('Bitte zuerst die aktuelle Berichts-Nr. eintragen, bevor ein neuer Bericht gestartet wird.');
+    return;
+  }
+  const newNr = String(parseInt(currentNr, 10) + 1);
+  const von = getStartNr();
+  const bis = von + dokuEntries.length - 1;
+  if(!confirm('Bericht ' + currentNr + ' mit Feststellung' + (dokuEntries.length===1?'':'en') + ' ' + (von===bis ? von : von+'–'+bis) + ' abschließen und Bericht ' + newNr + ' beginnen?\n\nDie Feststellungen werden dabei als Kurzdarstellung im Verlauf abgelegt (nicht mehr einzeln bearbeitbar). Deckblatt-Daten bleiben erhalten. Veranlassungen bleiben unverändert bestehen.')) return;
+
+  const gewerke = [...new Set(dokuEntries.map(x => (x.gewerk||'').trim()).filter(Boolean))];
+  const dates = dokuEntries.map(x => x.datum).filter(Boolean)
+    .sort((a,b) => (parseGermanDateSortable(a)||'').localeCompare(parseGermanDateSortable(b)||''));
+
+  verlaufEntries.push({
+    id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    berichtNr: currentNr,
+    von, bis,
+    zeitraumVon: dates[0] || '',
+    zeitraumBis: dates[dates.length-1] || '',
+    zusammenfassung: gewerke.join(', ')
+  });
+
+  // Nur die archivierten Dokumentations-Feststellungen entfernen -
+  // Veranlassungen (falls vorhanden) bleiben unangetastet für den neuen Bericht.
+  const dokuIds = new Set(dokuEntries.map(e => e.id));
+  allEntries = allEntries.filter(e => !dokuIds.has(e.id));
+  dokuIds.forEach(id => idbDeleteEntry(id));
+
+  berichtsNrEl.value = newNr;
+
+  renderVerlauf();
+  renderRecent();
+  renderEditor();
+  refreshReportViews();
+
+  idbPutMeta('verlauf', verlaufEntries);
+  scheduleBerichtskopfSave();
+
+  setConnStatus(true, 'Bericht ' + currentNr + ' abgeschlossen (Nr. ' + (von===bis?von:von+'–'+bis) + '). Bereit für Bericht ' + newNr + ' — nächste Feststellung erhält automatisch Nr. ' + getStartNr() + '.');
 }
 
 function escapeHtml(s){
