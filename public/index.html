@@ -113,13 +113,19 @@
   .logo-placeholder{ width:36px; height:36px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:2px; }
   .logo-placeholder div{ background:#000; }
   .rp-footer{ position:absolute; left:30px; right:30px; bottom:16px; display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); border-top:1px solid var(--concrete-2); padding-top:6px; }
-  .cover-title{ font-family:'Archivo'; font-weight:800; font-size:18px; letter-spacing:0.12em; margin-bottom:22px; }
+  .cover-title{ font-family:'Archivo'; font-weight:800; font-size:16px; letter-spacing:0.1em; margin-bottom:22px; }
   table.meta-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:20px; }
   table.meta-table td{ padding:4px 0; vertical-align:top; }
   table.meta-table td.k{ width:150px; text-decoration:underline; }
   table.verteiler-table, table.rahmen-table, table.doku-index{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:18px; }
-  table.verteiler-table th, table.verteiler-table td, table.rahmen-table th, table.rahmen-table td, table.doku-index th, table.doku-index td{ border:1px solid #000; padding:5px 7px; text-align:left; vertical-align:top; }
-  table.verteiler-table th, table.rahmen-table th, table.doku-index th{ font-family:'Archivo'; font-weight:700; font-size:11px; }
+  table.rahmen-table th, table.rahmen-table td, table.doku-index th, table.doku-index td{ border:1px solid #000; padding:5px 7px; text-align:left; vertical-align:top; }
+  table.rahmen-table th, table.doku-index th{ font-family:'Archivo'; font-weight:700; font-size:11px; }
+  /* Verteiler-Tabelle wie in der Word-Vorlage: nur eine durchgezogene Linie
+     unter dem Header, Datenzeilen durch gepunktete Linien getrennt, keine
+     senkrechten Linien. */
+  table.verteiler-table th{ border-bottom:1px solid #000; padding:5px 7px; text-align:left; font-family:'Archivo'; font-weight:700; font-size:11px; }
+  table.verteiler-table td{ border-bottom:1px dotted #999; padding:5px 7px; text-align:left; vertical-align:top; }
+  table.verteiler-table tr.blank-row td{ height:1.4em; color:transparent; }
   table.rahmen-table td.status-cell{ width:14px; padding:0; }
   .status-swatch{ width:14px; height:100%; min-height:18px; display:block; }
   .status-swatch.im-termin{ background:var(--green); }
@@ -129,6 +135,15 @@
   .legend{ display:flex; flex-direction:column; gap:4px; font-size:11px; margin-top:10px; }
   .legend .row{ display:flex; align-items:center; gap:8px; }
   .legend .sw{ width:16px; height:12px; display:inline-block; }
+  table.wetter-table{ width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px; }
+  table.wetter-table td{ border:1px solid #000; padding:6px 8px; vertical-align:middle; }
+  table.wetter-table td.wd{ width:18%; }
+  table.wetter-table td.wv{ width:14%; }
+  table.wetter-table td.wlegend{ padding:0; }
+  table.wetter-table td.wlegend .row{ display:flex; align-items:center; gap:8px; padding:3px 8px; border-bottom:1px solid #000; }
+  table.wetter-table td.wlegend .row:last-child{ border-bottom:none; }
+  table.wetter-table td.wlegend .sw{ width:16px; height:12px; display:inline-block; flex-shrink:0; }
+  .hinweis{ font-weight:700; margin-bottom:10px; font-size:11.5px; }
   .toc-line{ display:flex; align-items:baseline; gap:6px; font-size:13px; margin-bottom:6px; }
   .toc-line .dots{ flex:1; border-bottom:1px dotted var(--muted); position:relative; top:-3px; }
   h3.section{ font-size:14px; border-bottom:1px solid #000; padding-bottom:6px; margin-bottom:14px; }
@@ -224,16 +239,8 @@
           <label>Berichts-Nr. <button type="button" class="wetter-btn" onclick="startNewReportInReihe()" title="Aktuelle Feststellungen als Kurzdarstellung ablegen und Berichts-Nr. erhöhen">➜ neuer Bericht</button></label>
           <input type="number" id="rBerichtsNr" placeholder="z. B. 1" min="1">
         </div>
-        <div>
-          <label>Temperatur Min. <button type="button" class="wetter-btn" onclick="fetchWeatherForDate()" title="Temperatur für das eingetragene Datum automatisch ermitteln">🌤️ automatisch</button></label>
-          <input type="text" id="rTempMin" placeholder="z. B. 16,0°C">
-        </div>
+        <div><label>Temperatur Min.</label><input type="text" id="rTempMin" placeholder="z. B. 16,0°C"></div>
         <div><label>Temperatur Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22,0°C"></div>
-        <div class="full">
-          <label>Ort für Wetterermittlung <span style="font-weight:400;color:var(--muted)">(optional — falls leer, wird der Ort aus Projekt/Baustelle abgeleitet)</span></label>
-          <input type="text" id="rWetterOrt" placeholder="z. B. Nürnberg">
-        </div>
-        <div class="full" id="wetterStatus" style="font-size:12px;color:var(--muted);display:none;"></div>
         <input type="text" id="rDateiname" style="display:none" aria-hidden="true">
       </div>
 
@@ -379,7 +386,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rWetterOrt','rVerteiler','rRahmen'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
 
 async function idbPutMeta(key, value){
   try{
@@ -503,34 +510,11 @@ function updateHeaderProj(){
 document.getElementById('rProjekt').addEventListener('input', updateHeaderProj);
 document.getElementById('rBaustelle').addEventListener('input', updateHeaderProj);
 
-// ===================== Witterung automatisch ermitteln =====================
-// Nutzt die kostenlose Open-Meteo API (kein Schlüssel nötig): zuerst den
-// Ort geokodieren, dann die historischen Tageswerte für das eingetragene
-// Datum abrufen. Ort wird aus dem Projekt-Feld abgeleitet (Teil nach dem
-// letzten "|", z. B. "München" aus "NFM | München").
 function parseGermanDateToISO(str){
   const m = (str || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if(!m) return null;
   const [, d, mo, y] = m;
   return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
-}
-
-function guessLocationName(){
-  // Manuelles Feld hat immer Vorrang, falls ausgefüllt.
-  const manuell = document.getElementById('rWetterOrt').value.trim();
-  if(manuell) return manuell;
-
-  const projekt = document.getElementById('rProjekt').value.trim();
-  if(projekt.includes('|')){
-    // Format ist immer "Kürzel | Straße, Stadt" - der Teil nach dem
-    // letzten Komma ist zuverlässig der Stadtname (Straßenadressen findet
-    // die Wetter-API i. d. R. nicht). Der Server versucht bei Bedarf
-    // zusätzlich noch weitere Varianten als Rückfallebene.
-    const nachPipe = projekt.split('|').pop().trim();
-    if(nachPipe.includes(',')) return nachPipe.split(',').pop().trim();
-    return nachPipe;
-  }
-  return projekt || document.getElementById('rBaustelle').value.trim();
 }
 
 // Baustellen-Kürzel für den Dateinamen: der Teil VOR dem "|" in "Projekt /
@@ -558,60 +542,6 @@ function autoDateinameFromInputs(){
     : `${jj}${mm}${tt}_QS-Bericht-${kuerzelClean}.docx`;
 }
 
-async function fetchWeatherForDate(){
-  const statusEl = document.getElementById('wetterStatus');
-  const showStatus = (msg) => { statusEl.style.display = 'block'; statusEl.textContent = msg; };
-
-  const isoDate = parseGermanDateToISO(document.getElementById('rDatum').value);
-  if(!isoDate){
-    showStatus('Temperatur: Bitte zuerst ein gültiges Datum im Format TT.MM.JJJJ eintragen.');
-    return;
-  }
-  const location = guessLocationName();
-  if(!location){
-    showStatus('Temperatur: Bitte zuerst Projekt/Baustelle (Ort) eintragen, damit der Standort bestimmt werden kann.');
-    return;
-  }
-
-  showStatus('Temperatur wird für ' + location + ' am ' + document.getElementById('rDatum').value + ' ermittelt …');
-  try{
-    // Läuft über die eigene Serverfunktion /api/weather statt direkt über
-    // Open-Meteo - direkte Browser-Aufrufe scheiterten mit einem CORS-Fehler
-    // (Open-Meteo sendet für geocoding-api.open-meteo.com keinen
-    // Access-Control-Allow-Origin-Header, der Browser blockt die Antwort
-    // deshalb). Server-zu-Server-Aufrufe sind davon nicht betroffen.
-    const res = await fetch('/api/weather?ort=' + encodeURIComponent(location) + '&datum=' + isoDate);
-    const data = await res.json().catch(() => ({}));
-    if(!res.ok){
-      showStatus('Temperatur: ' + (data.error || ('Fehler ' + res.status)) + ' — bitte manuell eintragen.');
-      return;
-    }
-    document.getElementById('rTempMin').value = data.tempMin.toFixed(1) + '°C';
-    document.getElementById('rTempMax').value = data.tempMax.toFixed(1) + '°C';
-    scheduleBerichtskopfSave();
-    refreshReportViews();
-    showStatus('Temperatur für ' + data.ort + ' am ' + document.getElementById('rDatum').value + ' übernommen (Quelle: Open-Meteo). Bei Bedarf hier manuell anpassen.');
-  }catch(err){
-    console.error(err);
-    showStatus('Temperatur konnte nicht automatisch ermittelt werden — bitte manuell eintragen.');
-  }
-}
-
-// Beim Verlassen des Datumsfelds automatisch versuchen, sofern die
-// Temperaturfelder noch leer sind (manuell eingetragene Werte werden nie
-// überschrieben). Der Dateiname selbst wird nicht mehr hier zwischen-
-// gespeichert, sondern bei jeder Berichtserstellung frisch berechnet
-// (siehe autoDateinameFromInputs()).
-document.getElementById('rDatum').addEventListener('blur', () => {
-  if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim()){
-    fetchWeatherForDate();
-  }
-});
-document.getElementById('rProjekt').addEventListener('blur', () => {
-  if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim() && document.getElementById('rDatum').value.trim()){
-    fetchWeatherForDate();
-  }
-});
 updateHeaderProj();
 
 function setConnStatus(ok, text){
@@ -1383,26 +1313,40 @@ function renderReport(){
   const toc = [];
   let pageCounter = 2;
 
-  let rahmenBody = '';
+  let rahmenBody = `
+    <table class="wetter-table">
+      <tr>
+        <td class="wd">${escapeHtml(datum)}</td>
+        <td class="wv"><b>Min.</b><br>${escapeHtml(tempMin || '—')}</td>
+        <td class="wv"><b>Max.</b><br>${escapeHtml(tempMax || '—')}</td>
+        <td class="wlegend">
+          <div class="row"><span class="sw" style="background:var(--green)"></span>Termin unkritisch</div>
+          <div class="row"><span class="sw" style="background:var(--orange)"></span>Termin kritisch</div>
+          <div class="row"><span class="sw" style="background:var(--rust)"></span>Termin überschritten</div>
+        </td>
+      </tr>
+    </table>`;
   if(rahmenRows.length > 0){
     rahmenBody += `<h3 class="section">Rahmentermine</h3>
+      <div class="hinweis">Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)</div>
       <table class="rahmen-table">
-        <tr><th>Name</th><th>Terminplan</th><th>Bautenstand [%]</th><th></th></tr>
+        <tr><th>Haus</th><th>Gewerk</th><th>TP vom</th><th>Bautenstand</th><th></th><th>Prognose zum TP</th></tr>
         ${rahmenRows.map(r => {
           const [name='', termin='', stand='', status='im-termin'] = r;
-          return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(termin)}</td><td>${escapeHtml(stand)}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td></tr>`;
+          return `<tr><td>${escapeHtml(name)}</td><td></td><td>${escapeHtml(termin)}</td><td>${escapeHtml(stand)}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td><td></td></tr>`;
         }).join('')}
-      </table>
-      <div class="legend">
-        <div class="row"><span class="sw" style="background:var(--green)"></span>Im Termin</div>
-        <div class="row"><span class="sw" style="background:var(--blue)"></span>Termin nicht kritisch</div>
-        <div class="row"><span class="sw" style="background:var(--orange)"></span>Termin +2 KW</div>
-        <div class="row"><span class="sw" style="background:var(--rust)"></span>Termin +4 KW</div>
-      </div>`;
-    toc.push({ title: 'Rahmentermine', page: pageCounter });
-    pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: rahmenBody });
-    pageCounter++;
+      </table>`;
+  } else {
+    rahmenBody += `<h3 class="section">Rahmentermine</h3>
+      <div class="hinweis">Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)</div>
+      <table class="rahmen-table">
+        <tr><th>Haus</th><th>Gewerk</th><th>TP vom</th><th>Bautenstand</th><th></th><th>Prognose zum TP</th></tr>
+        ${Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
+      </table>`;
   }
+  toc.push({ title: 'Rahmentermine', page: pageCounter });
+  pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: rahmenBody });
+  pageCounter++;
 
   let dokuBody = `<h3 class="section">Dokumentation</h3>`;
   if(verlaufEntries.length){
@@ -1444,7 +1388,7 @@ function renderReport(){
     dokuBody += `</table>`;
   }
   toc.push({ title: 'Dokumentation', page: pageCounter });
-  pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: dokuBody });
+  pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: dokuBody });
   pageCounter++;
 
   let veranlBody = `<h3 class="section">Veranlassungen</h3>`;
@@ -1472,37 +1416,37 @@ function renderReport(){
     });
     veranlBody += `</table>`;
   }
-  toc.push({ title: 'Veranlassungen', page: pageCounter });
-  pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: veranlBody });
+  pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: veranlBody });
   pageCounter++;
 
   const totalPages = pageCounter - 1;
   const witterung = (tempMin || tempMax) ? `Min. ${escapeHtml(tempMin||'—')} / Max. ${escapeHtml(tempMax||'—')}` : '';
 
   const coverBody = `
-    <div class="cover-title">L E I S T U N G S F E S T E L L U N G&nbsp;&nbsp;|&nbsp;&nbsp;B A U T E N S T A N D</div>
+    <div class="cover-title">L E I S T U N G S F E S T E L L U N G&nbsp;&nbsp;-&nbsp;&nbsp;Q U A L I T Ä T S S I C H E R U N G</div>
     <table class="meta-table">
-      <tr><td class="k">Thema</td><td>Bericht zur Leistungsfeststellung und Qualitätssicherung</td></tr>
+      <tr><td class="k">Thema</td><td>Bericht zur Leistungsfeststellung - Qualitätssicherung</td></tr>
       <tr><td class="k">Verfasser</td><td>${escapeHtml(verfasser)}</td></tr>
-      <tr><td class="k">Berichts-Nr.</td><td>${berichtsNrPadded}</td></tr>
       <tr><td class="k">Datum</td><td>${escapeHtml(datum)}</td></tr>
-      ${witterung ? `<tr><td class="k">Temperatur</td><td>${witterung}</td></tr>` : ''}
       <tr><td class="k">Seitenanzahl</td><td>${totalPages} Seiten</td></tr>
       <tr><td class="k">Kunde</td><td>${escapeHtml(kunde)}</td></tr>
     </table>
-    ${verteilerRows.length ? `
     <table class="verteiler-table">
       <tr><th>Name</th><th>Firma</th><th>Kürzel</th><th>E-Mail</th></tr>
       ${verteilerRows.map(r => { const [name='',firma='',kuerzel='',email=''] = r; return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(firma)}</td><td>${escapeHtml(kuerzel)}</td><td>${escapeHtml(email)}</td></tr>`; }).join('')}
-    </table>` : ''}
-    <table class="meta-table" style="margin-top:6px"><tr><td class="k">Verteilung</td><td>per E-Mail</td></tr></table>
+      ${Array.from({length: Math.max(0, 12 - verteilerRows.length)}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td></tr>`).join('')}
+    </table>
+    <table class="meta-table" style="margin-top:6px">
+      <tr><td class="k">Verteilung</td><td>per Email</td></tr>
+      <tr><td class="k">Anlagen</td><td>./.</td></tr>
+    </table>
     <h3 class="section" style="margin-top:22px">Inhaltsverzeichnis</h3>
     ${toc.map(t => `<div class="toc-line"><span>${escapeHtml(t.title)}</span><span class="dots"></span><span>${t.page}</span></div>`).join('')}
   `;
 
   let html = `<div class="report-page">
     <div class="rp-header">
-      <div class="titles"><div class="t1">${escapeHtml(projekt)}</div><div class="t2">${escapeHtml(baustelle)}</div></div>
+      <div class="titles"><div class="t1">${escapeHtml(projekt)}</div></div>
       <div class="logo-mark">${logoHtml}</div>
     </div>
     ${coverBody}
