@@ -228,11 +228,8 @@
         <input type="text" id="rDateiname" style="display:none" aria-hidden="true">
       </div>
 
-      <div class="hint" style="margin-top:14px">Verteiler und Rahmentermine werden nicht mehr hier eingetippt — sie kommen entweder aus einer hochgeladenen Berichtsdatei (JSON) oder werden später direkt im fertigen Word-Dokument ergänzt.</div>
       <textarea class="mono" id="rVerteiler" style="display:none" aria-hidden="true"></textarea>
       <textarea class="mono" id="rRahmen" style="display:none" aria-hidden="true"></textarea>
-      <input type="file" accept="image/*" id="logoInput" style="display:none" aria-hidden="true">
-      <img id="logoPreview" style="display:none">
 
       <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
       <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
@@ -489,8 +486,6 @@ async function finishCollection(){
 
 function todayStr(){ return new Date().toLocaleDateString('de-DE'); }
 document.getElementById('rDatum').value = todayStr();
-document.getElementById('logoPreview').src = logoDataUrl;
-document.getElementById('logoPreview').style.display = 'inline-block';
 
 function updateHeaderProj(){
   const p = document.getElementById('rProjekt').value.trim() || 'XY | München';
@@ -939,18 +934,6 @@ let currentType = 'doku';
 function setType(t){
   currentType = t;
   document.querySelectorAll('.type-toggle button').forEach(b=>b.classList.toggle('on', b.dataset.type===t));
-}
-
-function handleLogo(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    logoDataUrl = ev.target.result;
-    document.getElementById('logoPreview').src = logoDataUrl;
-    document.getElementById('logoPreview').style.display = 'inline-block';
-  };
-  reader.readAsDataURL(file);
 }
 
 // ===================== Bildausrichtung zuverlässig normalisieren =====================
