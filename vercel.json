@@ -2,6 +2,7 @@
   "functions": {
     "api/index.py": {
       "includeFiles": "api/vorlage.docx"
-    }
+    },
+    "api/weather.py": {}
   }
 }
