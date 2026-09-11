@@ -132,12 +132,17 @@
   .toc-line{ display:flex; align-items:baseline; gap:6px; font-size:13px; margin-bottom:6px; }
   .toc-line .dots{ flex:1; border-bottom:1px dotted var(--muted); position:relative; top:-3px; }
   h3.section{ font-size:14px; border-bottom:1px solid #000; padding-bottom:6px; margin-bottom:14px; }
-  .day-line{ font-weight:700; padding:5px 0; margin:16px 0 4px; border-bottom:1px solid #000; font-size:11.5px; }
-  .entry{ display:grid; grid-template-columns:1fr 260px; gap:16px; padding:16px 0; border-bottom:1px solid var(--concrete-2); align-items:start; }
-  .entry .num{ font-weight:700; }
+  .day-line{ font-weight:700; padding:14px 7px 6px; border-bottom:1px solid #000; font-size:11.5px; }
   .entry .txt-line{ margin-bottom:2px; }
-  .entry img{ width:260px; height:175px; object-fit:contain; background:var(--concrete); border-radius:2px; border:1px solid var(--line); }
   .stand-line{ margin-top:6px; }
+  table.doku-entries{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:4px; }
+  table.doku-entries th{ border-bottom:1px solid #000; padding:5px 7px; text-align:left; font-family:'Archivo'; font-weight:700; font-size:11px; }
+  table.doku-entries td{ border-bottom:1px solid var(--concrete-2); padding:14px 7px; vertical-align:top; }
+  table.doku-entries td.entry-photo{ text-align:center; padding-top:4px; }
+  /* Seitenverhältnis entspricht der Word-Vorlage (Fotohöhe als feste
+     Zielgröße, Breite bis max. 3,35"/2,55" ≈ 1,314) - object-fit:contain
+     bildet dasselbe "in Box einpassen ohne verzerren"-Verhalten nach. */
+  table.doku-entries td.entry-photo img{ width:100%; aspect-ratio:1.314/1; object-fit:contain; background:var(--concrete); border:1px solid var(--line); border-radius:2px; }
   details.help{ margin-top:8px; }
   details.help summary{ font-size:12px; color:var(--muted); cursor:pointer; }
   details.help .ex{ font-size:11px; color:var(--muted); background:var(--concrete); padding:8px; border-radius:var(--radius); margin-top:6px; font-family:monospace; white-space:pre-wrap; }
@@ -224,6 +229,10 @@
           <input type="text" id="rTempMin" placeholder="z. B. 16,0°C">
         </div>
         <div><label>Temperatur Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22,0°C"></div>
+        <div class="full">
+          <label>Ort für Wetterermittlung <span style="font-weight:400;color:var(--muted)">(optional — falls leer, wird der Ort aus Projekt/Baustelle abgeleitet)</span></label>
+          <input type="text" id="rWetterOrt" placeholder="z. B. Nürnberg">
+        </div>
         <div class="full" id="wetterStatus" style="font-size:12px;color:var(--muted);display:none;"></div>
         <input type="text" id="rDateiname" style="display:none" aria-hidden="true">
       </div>
@@ -370,7 +379,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rWetterOrt','rVerteiler','rRahmen'];
 
 async function idbPutMeta(key, value){
   try{
@@ -507,10 +516,19 @@ function parseGermanDateToISO(str){
 }
 
 function guessLocationName(){
+  // Manuelles Feld hat immer Vorrang, falls ausgefüllt.
+  const manuell = document.getElementById('rWetterOrt').value.trim();
+  if(manuell) return manuell;
+
   const projekt = document.getElementById('rProjekt').value.trim();
   if(projekt.includes('|')){
-    const parts = projekt.split('|');
-    return parts[parts.length - 1].trim();
+    // Format ist immer "Kürzel | Straße, Stadt" - der Teil nach dem
+    // letzten Komma ist zuverlässig der Stadtname (Straßenadressen findet
+    // die Wetter-API i. d. R. nicht). Der Server versucht bei Bedarf
+    // zusätzlich noch weitere Varianten als Rückfallebene.
+    const nachPipe = projekt.split('|').pop().trim();
+    if(nachPipe.includes(',')) return nachPipe.split(',').pop().trim();
+    return nachPipe;
   }
   return projekt || document.getElementById('rBaustelle').value.trim();
 }
@@ -1400,26 +1418,30 @@ function renderReport(){
   if(doku.length===0){
     dokuBody += `<div class="empty">Keine Dokumentations-Einträge vorhanden.</div>`;
   }else{
+    dokuBody += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
     let lastDate = null;
     doku.forEach((e, i) => {
       if(e.datum !== lastDate){
         lastDate = e.datum;
-        dokuBody += `<div class="day-line">${escapeHtml(e.datum)}</div>`;
+        dokuBody += `<tr><td colspan="3" class="day-line">${escapeHtml(e.datum)}</td></tr>`;
       }
       dokuBody += `
-      <div class="entry">
-        <div>
-          <div class="num">${startNr + i}</div>
+      <tr>
+        <td>${startNr + i}</td>
+        <td>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
           <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
           ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
-          ${e.arbeiten ? `<div class="txt-line">Info: ${escapeHtml(e.arbeiten)}</div>` : ''}
+          <div class="txt-line">&nbsp;</div>
+          <div class="txt-line">Info:</div>
+          ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
           ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
           <div class="stand-line">Stand:${e.datum}${e.kuerzel ? ' · ' + escapeHtml(e.kuerzel) : ''}</div>
-        </div>
-        <img src="${e.photoUrl}">
-      </div>`;
+        </td>
+        <td class="entry-photo"><img src="${e.photoUrl}"></td>
+      </tr>`;
     });
+    dokuBody += `</table>`;
   }
   toc.push({ title: 'Dokumentation', page: pageCounter });
   pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: dokuBody });
@@ -1429,22 +1451,26 @@ function renderReport(){
   if(veranl.length===0){
     veranlBody += `<div class="empty">Keine Veranlassungen vorhanden.</div>`;
   }else{
+    veranlBody += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
     veranl.forEach((e, i) => {
       const letter = String.fromCharCode(65 + i);
       veranlBody += `
-      <div class="entry">
-        <div>
-          <div class="num">${letter}</div>
+      <tr>
+        <td>${letter}</td>
+        <td>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
           <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
-          ${e.arbeiten ? `<div class="txt-line">${escapeHtml(e.arbeiten)}</div>` : ''}
+          <div class="txt-line">&nbsp;</div>
+          <div class="txt-line">Info:</div>
+          ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
           ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
           <div class="txt-line">Verantwortlichkeit: ${escapeHtml(e.verantwortlich || '—')}</div>
           <div class="stand-line">Stand: ${e.datum}${e.kuerzel ? ' · ' + escapeHtml(e.kuerzel) : ''}</div>
-        </div>
-        <img src="${e.photoUrl}">
-      </div>`;
+        </td>
+        <td class="entry-photo"><img src="${e.photoUrl}"></td>
+      </tr>`;
     });
+    veranlBody += `</table>`;
   }
   toc.push({ title: 'Veranlassungen', page: pageCounter });
   pages.push({ subtitle: 'Leistungsfeststellung | Bautenstand', body: veranlBody });
