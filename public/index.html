@@ -109,6 +109,10 @@
   table.editable-table td{ padding:4px 6px; border-bottom:1px solid var(--concrete-2); vertical-align:middle; }
   table.editable-table td.ro-cell{ font-size:13px; color:var(--ink); }
   table.editable-table input, table.editable-table select{ padding:6px 7px; font-size:13px; margin:0; background:var(--white); }
+  .input-suffix{ display:flex; align-items:center; gap:5px; background:var(--white); border:1.5px solid var(--line); border-radius:var(--radius); padding-right:8px; }
+  .input-suffix input{ flex:1; min-width:0; border:none !important; background:none !important; padding-right:2px !important; }
+  .input-suffix input:focus{ outline:none; }
+  .input-suffix span{ font-size:13px; color:var(--muted); flex-shrink:0; }
   @media (min-width:860px){
     .container{ max-width:1120px; }
     #view-report .edit-row{ display:grid; grid-template-columns:auto 300px 1fr; gap:18px; align-items:start; padding:18px 0; }
@@ -273,7 +277,9 @@
 
       <details class="help" style="margin-top:14px" open>
         <summary>Rahmentermine festlegen (einmalig pro Projekt)</summary>
-        <div class="ex" style="font-family:inherit;white-space:normal">Hier einmal zu Projektbeginn die Häuser/Bauabschnitte mit ihrem jeweiligen Termin (TP vom) anlegen. Bei jedem weiteren Bericht müssen dann nur noch Bautenstand und Pünktlichkeit unten aktualisiert werden — die Liste selbst bleibt gleich.</div>
+        <div class="ex" style="font-family:inherit;white-space:normal">Hier einmal zu Projektbeginn Haus, Gewerk und die Ausführung nach TP (von/bis) je Zeile anlegen. Bei jedem weiteren Bericht müssen dann nur noch Bautenstand, Prozent, Pünktlichkeit und ggf. Prognose unten aktualisiert werden — die Liste selbst bleibt gleich.</div>
+        <label style="margin-top:12px">Hinweistext über der Tabelle <span style="font-weight:400;color:var(--muted)">(projektspezifisch, erscheint im Bericht — z. B. auf welchen Terminplan sich „TP vom" bezieht)</span></label>
+        <input type="text" id="rRahmenHinweis" placeholder="z. B. Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)">
         <div id="rahmenSetupEditor" style="margin-top:10px"></div>
         <button type="button" class="btn-secondary small" style="margin-top:8px" onclick="addRahmenRow()">+ Zeile hinzufügen</button>
       </details>
@@ -433,7 +439,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen','rRahmenHinweis'];
 
 async function idbPutMeta(key, value){
   try{
@@ -706,6 +712,7 @@ function buildBerichtskopfPayload(){
     tempMax: document.getElementById('rTempMax').value,
     verteiler: document.getElementById('rVerteiler').value,
     rahmentermine: document.getElementById('rRahmen').value,
+    rahmenHinweis: document.getElementById('rRahmenHinweis').value,
     // Immer frisch berechnet (JJMMTT_QS-Bericht-Nr-Kürzel) statt aus einem
     // Eingabefeld gelesen - so stimmt er garantiert auch dann, wenn Datum/
     // Nr./Projekt sich seit dem letzten Mal geändert haben.
@@ -914,6 +921,7 @@ async function importContinueFile(e){
       setIfEmpty('rBerichtsNr', bk.berichtsNr);
       setIfEmpty('rVerteiler', bk.verteiler);
       setIfEmpty('rRahmen', bk.rahmentermine);
+      setIfEmpty('rRahmenHinweis', bk.rahmenHinweis);
       updateHeaderProj();
       scheduleBerichtskopfSave();
     }
@@ -1320,15 +1328,38 @@ function removeVerteilerRow(i){
 }
 
 // --- Rahmentermine: zwei Ansichten auf dieselben Zeilen (weiterhin in der
-// versteckten rRahmen-Textarea gespeichert, Format [Haus;TP vom;Stand;Status]).
-// "Setup" bearbeitet Haus+TP vom (einmalig pro Projekt), "Status" bearbeitet
-// nur noch Bautenstand+Pünktlichkeit (bei jedem Bericht).
-const RAHMEN_STATUS_OPTIONS = [
-  ['im-termin','Im Termin'],
-  ['nicht-kritisch','Nicht kritisch verzögert'],
-  ['plus2','Kritisch (+2 Wochen)'],
-  ['plus4','Stark überschritten (+4 Wochen)']
+// versteckten rRahmen-Textarea gespeichert). Zeilenformat (8 Felder):
+// [Haus, Gewerk, TP von, TP bis, Bautenstand, Prozent, Status, Prognose zum TP]
+// "Setup" bearbeitet Haus/Gewerk/TP von/TP bis (einmalig pro Projekt),
+// "Status" bearbeitet nur noch Bautenstand/Prozent/Pünktlichkeit/Prognose
+// (bei jedem Bericht neu).
+const RAHMEN_ROW_LEN = 8;
+const BAUTENSTAND_OPTIONS = [
+  ['nicht-begonnen','Nicht begonnen'],
+  ['in-bearbeitung','In Bearbeitung'],
+  ['fertiggestellt','Fertiggestellt']
 ];
+const RAHMEN_STATUS_OPTIONS = [
+  ['im-termin','🟩 Termin unkritisch'],
+  ['plus2','🟧 Termin kritisch'],
+  ['plus4','🟥 Termin überschritten']
+];
+// Für Fälle, in denen bereits ein Wert gespeichert ist, der nicht (mehr) zu
+// den festen Auswahloptionen passt (z. B. alte Freitext-Daten) - Auswahl
+// bekommt dann zusätzlich diesen Wert als eigene Option, damit nichts
+// stillschweigend überschrieben wird.
+function optionsWithFallback(options, currentVal){
+  if(!currentVal || options.some(([val]) => val === currentVal)) return options;
+  return [...options, [currentVal, currentVal]];
+}
+function bautenstandLabel(code){
+  const found = BAUTENSTAND_OPTIONS.find(([val]) => val === code);
+  return found ? found[1] : (code || '');
+}
+function rahmenStatusLabel(code){
+  const found = RAHMEN_STATUS_OPTIONS.find(([val]) => val === code);
+  return found ? found[1].replace(/^\S+\s/, '') : (code || '');
+}
 function getRahmenRows(){ return parseSemicolonRows(document.getElementById('rRahmen').value); }
 function setRahmenRows(rows){
   document.getElementById('rRahmen').value = rowsToSemicolonText(rows);
@@ -1340,12 +1371,14 @@ function renderRahmenSetup(){
   const rows = getRahmenRows();
   container.innerHTML = rows.length ? `
     <table class="editable-table">
-      <tr><th>Haus / Bezeichnung</th><th>TP vom</th><th></th></tr>
+      <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th></th></tr>
       ${rows.map((r,i) => {
-        const [name='',termin=''] = r;
+        const [haus='',gewerk='',tpVon='',tpBis=''] = r;
         return `<tr>
-          <td><input type="text" value="${escapeHtml(name)}" onchange="updateRahmenCell(${i},0,this.value)" placeholder="z. B. Haus 1"></td>
-          <td><input type="text" value="${escapeHtml(termin)}" onchange="updateRahmenCell(${i},1,this.value)" placeholder="z. B. 14.04.2026"></td>
+          <td><input type="text" value="${escapeHtml(haus)}" onchange="updateRahmenCell(${i},0,this.value)" placeholder="z. B. Haus 1, 2, 3"></td>
+          <td><input type="text" value="${escapeHtml(gewerk)}" onchange="updateRahmenCell(${i},1,this.value)" placeholder="z. B. Rohbau EG"></td>
+          <td><input type="text" value="${escapeHtml(tpVon)}" onchange="updateRahmenCell(${i},2,this.value)" placeholder="TT.MM.JJJJ"></td>
+          <td><input type="text" value="${escapeHtml(tpBis)}" onchange="updateRahmenCell(${i},3,this.value)" placeholder="TT.MM.JJJJ"></td>
           <td><button type="button" class="del-btn" onclick="removeRahmenRow(${i})" title="Zeile löschen">✕</button></td>
         </tr>`;
       }).join('')}
@@ -1359,16 +1392,21 @@ function renderRahmenStatus(){
   if(!rows.length){ container.innerHTML = '<div class="empty">Erst oben unter „Rahmentermine festlegen" Zeilen anlegen.</div>'; return; }
   container.innerHTML = `
     <table class="editable-table">
-      <tr><th>Haus / Bezeichnung</th><th>TP vom</th><th>Bautenstand</th><th>Pünktlichkeit</th></tr>
+      <tr><th>Haus</th><th>Gewerk</th><th>TP von–bis</th><th>Bautenstand</th><th>%</th><th>Pünktlichkeit</th><th>Prognose zum TP</th></tr>
       ${rows.map((r,i) => {
-        const [name='',termin='',stand='',status='im-termin'] = r;
+        const [haus='',gewerk='',tpVon='',tpBis='',bautenstand='',prozent='',status='im-termin',prognose=''] = r;
         return `<tr>
-          <td class="ro-cell">${escapeHtml(name) || '—'}</td>
-          <td class="ro-cell">${escapeHtml(termin) || '—'}</td>
-          <td><input type="text" value="${escapeHtml(stand)}" placeholder="z. B. 65%" onchange="updateRahmenCell(${i},2,this.value)"></td>
-          <td><select onchange="updateRahmenCell(${i},3,this.value)">
-            ${RAHMEN_STATUS_OPTIONS.map(([val,label]) => `<option value="${val}" ${status===val?'selected':''}>${label}</option>`).join('')}
+          <td class="ro-cell">${escapeHtml(haus) || '—'}</td>
+          <td class="ro-cell">${escapeHtml(gewerk) || '—'}</td>
+          <td class="ro-cell">${escapeHtml(tpVon) || '—'}${tpBis ? ' – ' + escapeHtml(tpBis) : ''}</td>
+          <td><select onchange="updateRahmenCell(${i},4,this.value)">
+            ${optionsWithFallback(BAUTENSTAND_OPTIONS, bautenstand).map(([val,label]) => `<option value="${val}" ${bautenstand===val?'selected':''}>${escapeHtml(label)}</option>`).join('')}
           </select></td>
+          <td><div class="input-suffix"><input type="number" min="0" max="100" step="1" value="${escapeHtml(prozent)}" onchange="updateRahmenCell(${i},5,this.value)"><span>%</span></div></td>
+          <td><select onchange="updateRahmenCell(${i},6,this.value)">
+            ${optionsWithFallback(RAHMEN_STATUS_OPTIONS, status).map(([val,label]) => `<option value="${val}" ${status===val?'selected':''}>${label}</option>`).join('')}
+          </select></td>
+          <td><input type="text" value="${escapeHtml(prognose)}" placeholder="optional" onchange="updateRahmenCell(${i},7,this.value)"></td>
         </tr>`;
       }).join('')}
     </table>
@@ -1377,8 +1415,13 @@ function renderRahmenStatus(){
 function updateRahmenCell(i, colIdx, val){
   const rows = getRahmenRows();
   if(!rows[i]) return;
-  while(rows[i].length < 4) rows[i].push('');
-  if(colIdx === 3 && !val) val = 'im-termin';
+  while(rows[i].length < RAHMEN_ROW_LEN) rows[i].push('');
+  if(colIdx === 4 && !val) val = 'nicht-begonnen';
+  if(colIdx === 5 && val !== ''){
+    val = val.replace(/[^0-9]/g,'');
+    if(val !== '') val = String(Math.min(100, Math.max(0, parseInt(val,10))));
+  }
+  if(colIdx === 6 && !val) val = 'im-termin';
   rows[i][colIdx] = val;
   setRahmenRows(rows);
   renderRahmenSetup();
@@ -1386,7 +1429,7 @@ function updateRahmenCell(i, colIdx, val){
 }
 function addRahmenRow(){
   const rows = getRahmenRows();
-  rows.push(['','','','im-termin']);
+  rows.push(['','','','','nicht-begonnen','','im-termin','']);
   setRahmenRows(rows);
   renderRahmenSetup();
   renderRahmenStatus();
@@ -1450,7 +1493,6 @@ function renderEditor(){
       </div>
       <div class="edit-thumb"><img src="${e.photoUrl}" onclick="openLightboxById('${e.id}')" title="Zum Vergrößern klicken"></div>
       <div class="edit-fields">
-        <div class="edit-status">${e.bearbeitet ? '' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
         <div class="edit-status">${e.bearbeitet ? '<span class="badge green">Gespeichert</span>' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
         <div class="row2">
           <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
@@ -1545,22 +1587,23 @@ function renderReport(){
         </td>
       </tr>
     </table>`;
+  const rahmenHinweis = document.getElementById('rRahmenHinweis').value.trim();
   if(rahmenRows.length > 0){
     rahmenBody += `<h3 class="section">Rahmentermine</h3>
-      <div class="hinweis">Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)</div>
+      ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
       <table class="rahmen-table">
-        <tr><th>Haus</th><th>Gewerk</th><th>TP vom</th><th>Bautenstand</th><th></th><th>Prognose zum TP</th></tr>
+        <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
         ${rahmenRows.map(r => {
-          const [name='', termin='', stand='', status='im-termin'] = r;
-          return `<tr><td>${escapeHtml(name)}</td><td></td><td>${escapeHtml(termin)}</td><td>${escapeHtml(stand)}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td><td></td></tr>`;
+          const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='im-termin', prognose=''] = r;
+          return `<tr><td>${escapeHtml(haus)}</td><td>${escapeHtml(gewerk)}</td><td>${escapeHtml(tpVon)}</td><td>${escapeHtml(tpBis)}</td><td>${escapeHtml(bautenstandLabel(bautenstand))}</td><td>${prozent !== '' ? escapeHtml(prozent) + '%' : ''}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td><td>${escapeHtml(prognose)}</td></tr>`;
         }).join('')}
       </table>`;
   } else {
     rahmenBody += `<h3 class="section">Rahmentermine</h3>
-      <div class="hinweis">Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)</div>
+      ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
       <table class="rahmen-table">
-        <tr><th>Haus</th><th>Gewerk</th><th>TP vom</th><th>Bautenstand</th><th></th><th>Prognose zum TP</th></tr>
-        ${Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
+        <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
+        ${Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
       </table>`;
   }
   toc.push({ title: 'Rahmentermine', page: pageCounter });
