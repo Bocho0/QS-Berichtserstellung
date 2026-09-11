@@ -20,6 +20,7 @@ EMU_PER_IN = 914400
 # zuverlässig 3 Feststellungen auf eine Seite passen (nutzbarer Bereich für
 # Feststellungen ≈ 9,1" ÷ 3 ≈ 3,0"/Zeile, minus ~0,44" Foto-Innenabstand).
 MAX_BOX_IN = 2.55
+MAX_BOX_WIDTH_IN = 3.35
 LINE_HEIGHT_PT = 9 * 1.2
 
 
@@ -34,19 +35,23 @@ def decode_photo(data_url, out_path):
     return out_path
 
 
-def fit_box(w_px, h_px, max_in=MAX_BOX_IN):
+def fit_box(w_px, h_px, max_h_in=MAX_BOX_IN, max_w_in=MAX_BOX_WIDTH_IN):
     # Seitenverhältnis auf einen moderaten Bereich begrenzen: verhindert,
     # dass sehr breite/panoramaartige Fotos unnötig flach/klein werden
     # (großer Leerraum zwischen Foto und "Stand:"-Zeile) - hält die
     # tatsächliche Fotohöhe über verschiedene Fotoformate hinweg konsistenter.
     ratio = w_px / h_px
     ratio = max(0.65, min(1.7, ratio))
-    if ratio >= 1:
-        w_in = max_in
-        h_in = max_in / ratio
-    else:
-        h_in = max_in
-        w_in = max_in * ratio
+    # Höhe ist die primäre Zielgröße (nicht die Breite) - so werden auch
+    # Querformat-Fotos wie im Referenzformat schön groß, nicht nur
+    # Hochformat-Fotos. Die Breite ergibt sich aus dem Seitenverhältnis,
+    # wird aber zusätzlich auf die verfügbare Spaltenbreite begrenzt (für
+    # sehr breite/panoramaartige Fotos).
+    h_in = max_h_in
+    w_in = max_h_in * ratio
+    if w_in > max_w_in:
+        w_in = max_w_in
+        h_in = max_w_in / ratio
     return Emu(int(w_in * EMU_PER_IN)), Emu(int(h_in * EMU_PER_IN))
 
 
@@ -613,8 +618,8 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
     # Spaltenbreiten-Korrektur (Nr.-Spalte / Bautenstand-Spalte)
     try:
         set_col_width_dxa(dokumentation_table, 0, 1250)
-        set_col_width_dxa(dokumentation_table, 1, 5068)
-        set_col_width_dxa(dokumentation_table, 2, 3888)
+        set_col_width_dxa(dokumentation_table, 1, 4047)
+        set_col_width_dxa(dokumentation_table, 2, 4909)
     except Exception:
         pass
     try:

@@ -21,6 +21,18 @@ def _fetch_json(url, timeout=6):
         return json.loads(resp.read().decode('utf-8'))
 
 
+def _geocode(ort, timeout=6):
+    """Geokodiert einen Ort bei Open-Meteo. Gibt (lat, lon, name) oder None
+    zurück, wenn nichts gefunden wurde."""
+    geo_url = ('https://geocoding-api.open-meteo.com/v1/search?name='
+               + quote(ort) + '&count=1&language=de&format=json')
+    geo = _fetch_json(geo_url, timeout=timeout)
+    results = geo.get('results') or []
+    if not results:
+        return None
+    return results[0]['latitude'], results[0]['longitude'], results[0].get('name', ort)
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
@@ -37,22 +49,40 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(400, {'error': 'Parameter "ort" und "datum" (JJJJ-MM-TT) werden benötigt.'})
                 return
 
-            geo_url = ('https://geocoding-api.open-meteo.com/v1/search?name='
-                       + quote(ort) + '&count=1&language=de&format=json')
-            try:
-                geo = _fetch_json(geo_url)
-            except (urllib.error.URLError, TimeoutError) as e:
-                self._send_json(502, {'error': f'Geokodierung fehlgeschlagen: {e}'})
+            # Erst den vollen Ortsnamen versuchen (z. B. "Charkovstraße,
+            # Nürnberg"), da Open-Meteo Straßenadressen aber meist nicht
+            # kennt (nur Städte/Orte), bei Fehlschlag mit dem Teil nach dem
+            # letzten Komma erneut versuchen (typischerweise der Stadtname),
+            # und als letzten Fallback nur das letzte Wort (z. B. bei
+            # "Musterstraße 5 München" -> "München").
+            versuche = [ort]
+            if ',' in ort:
+                nach_komma = ort.rsplit(',', 1)[1].strip()
+                if nach_komma and nach_komma not in versuche:
+                    versuche.append(nach_komma)
+            letztes_wort = ort.split()[-1].strip(',') if ort.split() else ''
+            if letztes_wort and letztes_wort not in versuche:
+                versuche.append(letztes_wort)
+
+            geocoded = None
+            fehler = None
+            for versuch in versuche:
+                try:
+                    geocoded = _geocode(versuch)
+                except (urllib.error.URLError, TimeoutError) as e:
+                    fehler = str(e)
+                    continue
+                if geocoded:
+                    break
+
+            if geocoded is None:
+                if fehler:
+                    self._send_json(502, {'error': f'Geokodierung fehlgeschlagen: {fehler}'})
+                else:
+                    self._send_json(404, {'error': f'Ort "{ort}" nicht gefunden (auch nicht unter vereinfachten Varianten).'})
                 return
 
-            results = geo.get('results') or []
-            if not results:
-                self._send_json(404, {'error': f'Ort "{ort}" nicht gefunden.'})
-                return
-
-            lat = results[0]['latitude']
-            lon = results[0]['longitude']
-            name = results[0].get('name', ort)
+            lat, lon, name = geocoded
 
             weather_url = (
                 'https://archive-api.open-meteo.com/v1/archive'
