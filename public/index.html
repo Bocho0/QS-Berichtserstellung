@@ -51,7 +51,7 @@
   .type-toggle button.on[data-type="doku"]{ background:var(--charcoal); color:var(--white); border-color:var(--charcoal); }
   .type-toggle button.on[data-type="veranlassung"]{ background:var(--rust); color:var(--white); border-color:var(--rust); }
   label.photo-box{ border:2px dashed var(--line); border-radius:var(--radius); background:var(--concrete); text-align:center; padding:22px 12px; cursor:pointer; position:relative; overflow:hidden; display:block; }
-  .photo-box img{ display:block; width:100%; max-height:280px; object-fit:cover; border-radius:2px; }
+  .photo-box img{ display:block; width:100%; height:280px; object-fit:contain; background:var(--concrete-2); border-radius:2px; }
   .photo-box .cta{ color:var(--muted); font-weight:600; font-size:14px; }
   .photo-box .cta .big{ display:block; font-family:'Archivo'; font-size:17px; color:var(--charcoal); margin-top:6px; }
   .photo-box svg{ width:34px; height:34px; color:var(--muted); }
@@ -63,7 +63,7 @@
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .recent-item{ display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--concrete-2); align-items:center; }
   .recent-item:last-child{ border-bottom:none; }
-  .recent-item img{ width:92px; height:92px; object-fit:cover; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
+  .recent-item img{ width:110px; height:110px; object-fit:contain; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
   .recent-item .meta{ flex:1; min-width:0; }
   .recent-item .meta .t1{ font-weight:700; font-size:13px; }
   .recent-item .meta .t2{ font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -90,12 +90,13 @@
   .edit-group h3{ font-size:13px; text-transform:uppercase; letter-spacing:0.03em; margin:16px 0 8px; color:var(--muted); }
   .edit-group h3:first-child{ margin-top:0; }
   .edit-row{ display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--concrete-2); }
-  .edit-thumb img{ width:130px; height:130px; object-fit:cover; border-radius:3px; border:1px solid var(--line); cursor:zoom-in; }
+  .edit-thumb img{ width:130px; height:130px; object-fit:contain; background:var(--concrete-2); border-radius:3px; border:1px solid var(--line); cursor:zoom-in; }
   .edit-fields{ flex:1; display:flex; flex-direction:column; gap:6px; }
   .edit-fields input, .edit-fields textarea{ padding:7px 8px; font-size:13px; margin:0; }
   .edit-fields textarea{ min-height:44px; }
   .edit-row{ align-items:flex-start; }
   .badge.orange{ background:var(--orange); color:var(--white); }
+  .badge.green{ background:var(--green); color:var(--white); }
   .edit-status{ margin-bottom:6px; }
   .edit-count{ font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:12px; }
   .editor-toolbar{ display:flex; justify-content:flex-end; margin-bottom:4px; }
@@ -103,11 +104,15 @@
   .lightbox{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:100; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; }
   .lightbox.active{ display:flex; }
   .lightbox img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:4px; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
+  table.editable-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  table.editable-table th{ font-size:11px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
+  table.editable-table td{ padding:4px 6px; border-bottom:1px solid var(--concrete-2); vertical-align:middle; }
+  table.editable-table td.ro-cell{ font-size:13px; color:var(--ink); }
+  table.editable-table input, table.editable-table select{ padding:6px 7px; font-size:13px; margin:0; background:var(--white); }
   @media (min-width:860px){
     .container{ max-width:1120px; }
     #view-report .edit-row{ display:grid; grid-template-columns:auto 300px 1fr; gap:18px; align-items:start; padding:18px 0; }
-    #view-report .edit-thumb img{ width:300px; height:300px; }
-    #view-report .edit-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
+    #view-report .edit-thumb img{ width:300px; height:300px; }    #view-report .edit-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
     #view-report .edit-fields textarea{ grid-column:1 / -1; min-height:90px; }
     #view-report .edit-status, #view-report .edit-actions{ grid-column:1 / -1; }
   }
@@ -265,6 +270,22 @@
 
       <textarea class="mono" id="rVerteiler" style="display:none" aria-hidden="true"></textarea>
       <textarea class="mono" id="rRahmen" style="display:none" aria-hidden="true"></textarea>
+
+      <details class="help" style="margin-top:14px" open>
+        <summary>Rahmentermine festlegen (einmalig pro Projekt)</summary>
+        <div class="ex" style="font-family:inherit;white-space:normal">Hier einmal zu Projektbeginn die Häuser/Bauabschnitte mit ihrem jeweiligen Termin (TP vom) anlegen. Bei jedem weiteren Bericht müssen dann nur noch Bautenstand und Pünktlichkeit unten aktualisiert werden — die Liste selbst bleibt gleich.</div>
+        <div id="rahmenSetupEditor" style="margin-top:10px"></div>
+        <button type="button" class="btn-secondary small" style="margin-top:8px" onclick="addRahmenRow()">+ Zeile hinzufügen</button>
+      </details>
+
+      <label style="margin-top:18px">Bautenstand &amp; Pünktlichkeit <span style="font-weight:400;color:var(--muted)">(bei jedem Bericht aktualisieren)</span></label>
+      <div id="rahmenStatusEditor"></div>
+
+      <details class="help" style="margin-top:14px">
+        <summary>Verteilerliste</summary>
+        <div id="verteilerEditor" style="margin-top:10px"></div>
+        <button type="button" class="btn-secondary small" style="margin-top:8px" onclick="addVerteilerRow()">+ Empfänger hinzufügen</button>
+      </details>
 
       <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
       <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
@@ -501,6 +522,9 @@ async function idbClearAll(){
 async function restoreFromIdb(){
   const stored = await idbGetAllEntries();
   await restoreBerichtskopfFromIdb();
+  renderVerteilerEditor();
+  renderRahmenSetup();
+  renderRahmenStatus();
   const storedVerlauf = await idbGetMeta('verlauf');
   if(Array.isArray(storedVerlauf) && storedVerlauf.length){
     verlaufEntries = storedVerlauf;
@@ -1094,7 +1118,7 @@ function renderRecent(){
       <img src="${e.photoUrl}">
       <div class="meta">
         <div class="t1">${e.type==='veranlassung' ? '<span class="badge rust">Veranlassung</span>' : ''}${escapeHtml(e.gewerk)}</div>
-        <div class="t2">${escapeHtml(e.ort)} · ${e.datum}</div>
+        <div class="t2">${e.ort ? escapeHtml(e.ort) + ' · ' : ''}${e.datum}</div>
       </div>
       <button class="btn-secondary small" onclick="saveToGallery('${e.id}')">Galerie</button>
       <button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">✕</button>
@@ -1123,10 +1147,8 @@ async function saveEntryEdit(id){
   if(!e) return;
   const fields = {
     gewerk: document.getElementById('ed_gewerk_'+id).value.trim(),
-    ort: document.getElementById('ed_ort_'+id).value.trim(),
-    arbeiten: document.getElementById('ed_arbeiten_'+id).value.trim(),
-    material: document.getElementById('ed_material_'+id).value.trim(),
     bauteil: document.getElementById('ed_bauteil_'+id).value.trim(),
+    arbeiten: document.getElementById('ed_arbeiten_'+id).value.trim(),
     datum: document.getElementById('ed_datum_'+id).value.trim(),
     kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim(),
     bearbeitet: true
@@ -1246,6 +1268,136 @@ function escapeHtml(s){
 function parseSemicolonRows(text){
   return text.split('\n').map(l=>l.trim()).filter(Boolean).map(l => l.split(';').map(p=>p.trim()));
 }
+function rowsToSemicolonText(rows){
+  return rows.map(r => r.join(';')).join('\n');
+}
+
+// --- Verteilerliste: editierbare Tabelle über der bisherigen versteckten
+// rVerteiler-Textarea, damit Format & JSON-Export/Import unverändert bleiben
+// (der Text in #rVerteiler ist weiterhin die "Quelle der Wahrheit").
+function getVerteilerRows(){ return parseSemicolonRows(document.getElementById('rVerteiler').value); }
+function setVerteilerRows(rows){
+  document.getElementById('rVerteiler').value = rowsToSemicolonText(rows);
+  scheduleBerichtskopfSave();
+}
+function renderVerteilerEditor(){
+  const container = document.getElementById('verteilerEditor');
+  if(!container) return;
+  const rows = getVerteilerRows();
+  container.innerHTML = rows.length ? `
+    <table class="editable-table">
+      <tr><th>Name</th><th>Firma</th><th>Kürzel</th><th>E-Mail</th><th></th></tr>
+      ${rows.map((r,i) => {
+        const [name='',firma='',kuerzel='',email=''] = r;
+        return `<tr>
+          <td><input type="text" value="${escapeHtml(name)}" onchange="updateVerteilerCell(${i},0,this.value)" placeholder="Name"></td>
+          <td><input type="text" value="${escapeHtml(firma)}" onchange="updateVerteilerCell(${i},1,this.value)" placeholder="Firma"></td>
+          <td><input type="text" value="${escapeHtml(kuerzel)}" onchange="updateVerteilerCell(${i},2,this.value)" placeholder="Kürzel"></td>
+          <td><input type="text" value="${escapeHtml(email)}" onchange="updateVerteilerCell(${i},3,this.value)" placeholder="E-Mail"></td>
+          <td><button type="button" class="del-btn" onclick="removeVerteilerRow(${i})" title="Zeile löschen">✕</button></td>
+        </tr>`;
+      }).join('')}
+    </table>
+  ` : '<div class="empty">Noch keine Empfänger — mit „+ Empfänger hinzufügen" beginnen.</div>';
+}
+function updateVerteilerCell(i, colIdx, val){
+  const rows = getVerteilerRows();
+  if(!rows[i]) return;
+  rows[i][colIdx] = val;
+  setVerteilerRows(rows);
+}
+function addVerteilerRow(){
+  const rows = getVerteilerRows();
+  rows.push(['','','','']);
+  setVerteilerRows(rows);
+  renderVerteilerEditor();
+}
+function removeVerteilerRow(i){
+  const rows = getVerteilerRows();
+  rows.splice(i,1);
+  setVerteilerRows(rows);
+  renderVerteilerEditor();
+}
+
+// --- Rahmentermine: zwei Ansichten auf dieselben Zeilen (weiterhin in der
+// versteckten rRahmen-Textarea gespeichert, Format [Haus;TP vom;Stand;Status]).
+// "Setup" bearbeitet Haus+TP vom (einmalig pro Projekt), "Status" bearbeitet
+// nur noch Bautenstand+Pünktlichkeit (bei jedem Bericht).
+const RAHMEN_STATUS_OPTIONS = [
+  ['im-termin','Im Termin'],
+  ['nicht-kritisch','Nicht kritisch verzögert'],
+  ['plus2','Kritisch (+2 Wochen)'],
+  ['plus4','Stark überschritten (+4 Wochen)']
+];
+function getRahmenRows(){ return parseSemicolonRows(document.getElementById('rRahmen').value); }
+function setRahmenRows(rows){
+  document.getElementById('rRahmen').value = rowsToSemicolonText(rows);
+  scheduleBerichtskopfSave();
+}
+function renderRahmenSetup(){
+  const container = document.getElementById('rahmenSetupEditor');
+  if(!container) return;
+  const rows = getRahmenRows();
+  container.innerHTML = rows.length ? `
+    <table class="editable-table">
+      <tr><th>Haus / Bezeichnung</th><th>TP vom</th><th></th></tr>
+      ${rows.map((r,i) => {
+        const [name='',termin=''] = r;
+        return `<tr>
+          <td><input type="text" value="${escapeHtml(name)}" onchange="updateRahmenCell(${i},0,this.value)" placeholder="z. B. Haus 1"></td>
+          <td><input type="text" value="${escapeHtml(termin)}" onchange="updateRahmenCell(${i},1,this.value)" placeholder="z. B. 14.04.2026"></td>
+          <td><button type="button" class="del-btn" onclick="removeRahmenRow(${i})" title="Zeile löschen">✕</button></td>
+        </tr>`;
+      }).join('')}
+    </table>
+  ` : '<div class="empty">Noch keine Rahmentermine angelegt.</div>';
+}
+function renderRahmenStatus(){
+  const container = document.getElementById('rahmenStatusEditor');
+  if(!container) return;
+  const rows = getRahmenRows();
+  if(!rows.length){ container.innerHTML = '<div class="empty">Erst oben unter „Rahmentermine festlegen" Zeilen anlegen.</div>'; return; }
+  container.innerHTML = `
+    <table class="editable-table">
+      <tr><th>Haus / Bezeichnung</th><th>TP vom</th><th>Bautenstand</th><th>Pünktlichkeit</th></tr>
+      ${rows.map((r,i) => {
+        const [name='',termin='',stand='',status='im-termin'] = r;
+        return `<tr>
+          <td class="ro-cell">${escapeHtml(name) || '—'}</td>
+          <td class="ro-cell">${escapeHtml(termin) || '—'}</td>
+          <td><input type="text" value="${escapeHtml(stand)}" placeholder="z. B. 65%" onchange="updateRahmenCell(${i},2,this.value)"></td>
+          <td><select onchange="updateRahmenCell(${i},3,this.value)">
+            ${RAHMEN_STATUS_OPTIONS.map(([val,label]) => `<option value="${val}" ${status===val?'selected':''}>${label}</option>`).join('')}
+          </select></td>
+        </tr>`;
+      }).join('')}
+    </table>
+  `;
+}
+function updateRahmenCell(i, colIdx, val){
+  const rows = getRahmenRows();
+  if(!rows[i]) return;
+  while(rows[i].length < 4) rows[i].push('');
+  if(colIdx === 3 && !val) val = 'im-termin';
+  rows[i][colIdx] = val;
+  setRahmenRows(rows);
+  renderRahmenSetup();
+  renderRahmenStatus();
+}
+function addRahmenRow(){
+  const rows = getRahmenRows();
+  rows.push(['','','','im-termin']);
+  setRahmenRows(rows);
+  renderRahmenSetup();
+  renderRahmenStatus();
+}
+function removeRahmenRow(i){
+  const rows = getRahmenRows();
+  rows.splice(i,1);
+  setRahmenRows(rows);
+  renderRahmenSetup();
+  renderRahmenStatus();
+}
 function isoWeekLabel(dateStr){
   const d = new Date(dateStr);
   const day = (d.getUTCDay() + 6) % 7;
@@ -1258,6 +1410,9 @@ function isoWeekLabel(dateStr){
 function refreshReportViews(){
   renderEditor();
   renderReport();
+  renderVerteilerEditor();
+  renderRahmenSetup();
+  renderRahmenStatus();
 }
 
 // Ob im Editor nur unbearbeitete Feststellungen angezeigt werden - hilfreich,
@@ -1296,11 +1451,12 @@ function renderEditor(){
       <div class="edit-thumb"><img src="${e.photoUrl}" onclick="openLightboxById('${e.id}')" title="Zum Vergrößern klicken"></div>
       <div class="edit-fields">
         <div class="edit-status">${e.bearbeitet ? '' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
-        <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
-        <input type="text" id="ed_ort_${e.id}" value="${escapeHtml(e.ort)}" placeholder="Ort">
-        <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
-        <textarea id="ed_arbeiten_${e.id}" placeholder="Info">${escapeHtml(e.arbeiten||'')}</textarea>
-        <input type="text" id="ed_material_${e.id}" value="${escapeHtml(e.material||'')}" placeholder="Material">
+        <div class="edit-status">${e.bearbeitet ? '<span class="badge green">Gespeichert</span>' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
+        <div class="row2">
+          <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
+          <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
+        </div>
+        <textarea id="ed_arbeiten_${e.id}" placeholder="Info (bei Bedarf inkl. Material)">${escapeHtml(e.arbeiten||'')}</textarea>
         ${e.type==='veranlassung' ? `<input type="text" id="ed_verantwortlich_${e.id}" value="${escapeHtml(e.verantwortlich||'')}" placeholder="Verantwortlichkeit">` : ''}
         <div class="row2">
           <input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="Datum">
@@ -1437,7 +1593,7 @@ function renderReport(){
         <td>${startNr + i}</td>
         <td>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-          <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
+          ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
           ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
           <div class="txt-line">&nbsp;</div>
           <div class="txt-line">Info:</div>
@@ -1466,7 +1622,8 @@ function renderReport(){
         <td>${letter}</td>
         <td>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-          <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
+          ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
+          ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
           <div class="txt-line">&nbsp;</div>
           <div class="txt-line">Info:</div>
           ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
