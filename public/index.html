@@ -779,6 +779,12 @@ async function splitAndDownloadReport(){
     acc += sizes[i];
     if(acc >= totalSize/2){ splitIdx = i+1; break; }
   }
+  // An einer vollen 3er-Gruppe ausrichten (3 Feststellungen passen pro
+  // Seite) - so wird exakt an einer Seitengrenze geteilt statt mitten in
+  // einer Seite, die im fertigen Bericht sonst zwischen beiden Dateien
+  // auseinandergerissen würde.
+  const rounded = Math.round(splitIdx / 3) * 3;
+  if(rounded > 0 && rounded < sorted.length) splitIdx = rounded;
   splitIdx = Math.max(1, Math.min(splitIdx, sorted.length-1));
   const teil1 = sorted.slice(0, splitIdx);
   const teil2 = sorted.slice(splitIdx);
@@ -810,9 +816,12 @@ async function splitAndDownloadReport(){
     // einen zweiten, unmittelbar folgenden automatischen Download ohne
     // eigene Nutzeraktion dazwischen (Anti-Spam-Schutz). Stattdessen: Teil 2
     // vorbereiten und einen eigenen Button zum Herunterladen anzeigen.
+    // onlyContent: Teil 2 bekommt kein eigenes Titelblatt/Rahmentermine mehr
+    // - nur die Feststellungen/Veranlassungen selbst (die stehen ja schon
+    // vollständig in Teil 1).
     pendingTeil2Payload = {
       berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-2-von-2.docx' },
-      entries: teil2, verlauf: verlaufEntries, startNr: startNr2
+      entries: teil2, verlauf: verlaufEntries, startNr: startNr2, onlyContent: true
     };
     hint.textContent = 'Teil 1 ("' + r1.filename + '") heruntergeladen. Jetzt Teil 2 herunterladen:';
     teil2Btn.style.display = 'block';
