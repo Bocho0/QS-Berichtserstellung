@@ -10,12 +10,12 @@ uebernimmt diese Funktion die Anfrage stellvertretend fuer die App.
 """
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote
-import json
+import json, traceback
 import urllib.request
 import urllib.error
 
 
-def _fetch_json(url, timeout=8):
+def _fetch_json(url, timeout=6):
     req = urllib.request.Request(url, headers={'User-Agent': 'qs-bautenstand-app/1.0'})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode('utf-8'))
@@ -77,6 +77,7 @@ class handler(BaseHTTPRequestHandler):
 
             self._send_json(200, {'ort': name, 'tempMin': round(tmin, 1), 'tempMax': round(tmax, 1)})
         except Exception as e:
+            traceback.print_exc()
             self._send_json(500, {'error': str(e)})
 
     def _cors_headers(self):

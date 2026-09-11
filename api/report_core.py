@@ -15,14 +15,12 @@ from PIL import Image
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 EMU_PER_IN = 914400
-MAX_BOX_IN = 2.4
+# Fotogröße: groß genug für gute Lesbarkeit, aber so kalibriert, dass auch im
+# ungünstigsten Fall (Hochformat-Foto, nutzt immer die volle Boxhöhe) noch
+# zuverlässig 3 Feststellungen auf eine Seite passen (nutzbarer Bereich für
+# Feststellungen ≈ 9,1" ÷ 3 ≈ 3,0"/Zeile, minus ~0,44" Foto-Innenabstand).
+MAX_BOX_IN = 2.55
 LINE_HEIGHT_PT = 9 * 1.2
-# Feste Ziel-Zeilenhöhe pro Feststellung (statt variabel je nach Fototyp/
-# Textlänge) - so passen zuverlässig immer genau 3 Feststellungen auf eine
-# Seite, unabhängig davon ob das Foto quer/hoch ist oder der Info-Text kurz
-# oder etwas länger. Ergibt sich aus dem nutzbaren Seitenbereich (~9,1")
-# geteilt durch 3, mit kleiner Sicherheitsmarge.
-FIXED_ROW_HEIGHT_PT = 208
 
 
 def w(tag):
@@ -37,7 +35,12 @@ def decode_photo(data_url, out_path):
 
 
 def fit_box(w_px, h_px, max_in=MAX_BOX_IN):
+    # Seitenverhältnis auf einen moderaten Bereich begrenzen: verhindert,
+    # dass sehr breite/panoramaartige Fotos unnötig flach/klein werden
+    # (großer Leerraum zwischen Foto und "Stand:"-Zeile) - hält die
+    # tatsächliche Fotohöhe über verschiedene Fotoformate hinweg konsistenter.
     ratio = w_px / h_px
+    ratio = max(0.65, min(1.7, ratio))
     if ratio >= 1:
         w_in = max_in
         h_in = max_in / ratio
@@ -120,7 +123,12 @@ def build_text_cell(cell, entry, nr, base_run, image_height_pt):
 
     FINE_TUNE_PT = 6
     used_pt = 16 + line_count * LINE_HEIGHT_PT
-    space_before = max(14, FIXED_ROW_HEIGHT_PT - used_pt - LINE_HEIGHT_PT - FINE_TUNE_PT)
+    # An der tatsächlichen Höhe DIESES Fotos ausrichten (nicht an einer
+    # festen Zielhöhe) - "Stand:" soll auf gleicher Höhe wie die Fotounter-
+    # kante enden. Die 3-pro-Seite-Zuverlässigkeit kommt jetzt über die
+    # Seitenverhältnis-Begrenzung in fit_box() plus die auf den Hochformat-
+    # Fall (volle Boxhöhe) kalibrierte MAX_BOX_IN.
+    space_before = max(14, image_height_pt + 16 - used_pt - LINE_HEIGHT_PT - FINE_TUNE_PT)
     p_stand = add_line(cell, f"Stand:{format_datum(entry.get('datum',''))}", base_run)
     p_stand.paragraph_format.space_before = Pt(space_before)
 
@@ -253,8 +261,14 @@ def clear_data_rows(table, header_rows=1):
                     r.text = ''
 
 
-def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
-    """data: bereits geparstes dict (nicht Dateipfad!)."""
+def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_content=False):
+    """data: bereits geparstes dict (nicht Dateipfad!).
+    only_content=True: Titelblatt, Verteiler, Wetter, Rahmentermine und
+    Inhaltsverzeichnis werden am Ende komplett entfernt - übrig bleiben nur
+    die Feststellungen/Veranlassungen. Für "Bericht in 2 Teilen erstellen":
+    Teil 2 soll ausschließlich Feststellungen enthalten, kein doppeltes
+    Titelblatt/keine doppelte Rahmentermine-Seite.
+    """
     bk = data.get('berichtskopf', {})
     entries = data.get('entries', [])
     verlauf = data.get('verlauf', [])
@@ -306,6 +320,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
     heading_ref_rPr = None
     dokumentation_p = None
     rahmentermine_p = None
+    content_pagebreak_p = None
     leistung_p = None
     thema_p = None
     for p in doc.paragraphs:
@@ -327,6 +342,15 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
             for br in p._p.findall('.//' + qn('w:br')):
                 if br.get(qn('w:type')) == 'page':
                     pagebreak_p = p
+                    break
+        # Der Seitenumbruch, der direkt vor "Dokumentation:" liegt (zwischen
+        # Rahmentermine- und Dokumentationsseite) - separat vom Seitenumbruch
+        # der Titelseite (pagebreak_p) erfasst, wird als Ankerpunkt gebraucht,
+        # um den Verlauf noch auf der Rahmentermine-Seite einzufügen.
+        if rahmentermine_p is not None and dokumentation_p is None and content_pagebreak_p is None:
+            for br in p._p.findall('.//' + qn('w:br')):
+                if br.get(qn('w:type')) == 'page':
+                    content_pagebreak_p = p
                     break
 
     def add_bookmark(paragraph, name, bm_id):
@@ -431,22 +455,23 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
                 if old_bdr is not None:
                     fpPr.remove(old_bdr)
 
-    # Verlauf vorheriger Berichte (Kurzdarstellung) direkt über der
-    # Dokumentationstabelle einfügen - als echte Nr.-Bereich/Zeitraum/
-    # Zusammenfassung-Tabelle (analog zur Vorschau in der App), damit frühere
-    # Feststellungen als kompakte Referenz sichtbar bleiben, ohne bei jedem
-    # neuen Bericht der Reihe erneut als volle Einträge (samt Fotos)
-    # aufzutauchen.
-    if verlauf and dokumentation_p is not None:
+    # Verlauf vorheriger Berichte (Kurzdarstellung) auf der Rahmentermine-
+    # Seite einfügen (direkt darunter, vor dem Seitenumbruch zur
+    # Dokumentation) - als echte Nr.-Bereich/Zeitraum/Zusammenfassung-
+    # Tabelle (analog zur Vorschau in der App), damit frühere Feststellungen
+    # als kompakte Referenz sichtbar bleiben, ohne bei jedem neuen Bericht
+    # der Reihe erneut als volle Einträge (samt Fotos) aufzutauchen.
+    verlauf_anchor = content_pagebreak_p if content_pagebreak_p is not None else dokumentation_p
+    if verlauf and verlauf_anchor is not None:
         vref_rpr_xml = (etree.tostring(heading_ref_rPr, encoding='unicode')
                         if heading_ref_rPr is not None
                         else f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/></w:rPr>')
 
         verlauf_heading = parse_xml(f'''<w:p xmlns:w="{W}">
-          <w:pPr><w:spacing w:before="120" w:after="80"/></w:pPr>
+          <w:pPr><w:spacing w:before="240" w:after="80"/></w:pPr>
           <w:r>{vref_rpr_xml}<w:t>Verlauf vorheriger Berichte</w:t></w:r>
         </w:p>''')
-        dokumentation_p._p.addprevious(verlauf_heading)
+        verlauf_anchor._p.addprevious(verlauf_heading)
 
         sec = doc.sections[0]
         avail_dxa = sec.page_width.twips - sec.left_margin.twips - sec.right_margin.twips
@@ -492,15 +517,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
           {rows_xml}
         </w:tbl>'''
         verlauf_tbl = parse_xml(verlauf_tbl_xml)
-        dokumentation_p._p.addprevious(verlauf_tbl)
-
-        # Seitenumbruch nach der Verlaufstabelle: Die Dokumentationstabelle
-        # soll immer die volle Seitenhöhe zur Verfügung haben, damit
-        # zuverlässig 3 Feststellungen pro Seite passen (mit der
-        # Verlaufstabelle auf derselben Seite blieb sonst weniger Platz
-        # übrig und nur 2 passten).
-        verlauf_spacer = parse_xml(f'<w:p xmlns:w="{W}"><w:r><w:br w:type="page"/></w:r></w:p>')
-        dokumentation_p._p.addprevious(verlauf_spacer)
+        verlauf_anchor._p.addprevious(verlauf_tbl)
 
     # Fußzeile: Dateiname (links) und Seitenzahl (rechts) auf eine gemeinsame
     # Zeile bringen. Beides lag bisher in zwei getrennten Absätzen unter-
@@ -797,8 +814,29 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos'):
         image_height_pt = build_image_cell(row.cells[2], photo_path)
         build_text_cell(row.cells[1], entry, i, base_run, image_height_pt)
 
-    doc.save(out_path)
+    if only_content:
+        # Titelblatt, Verteiler, Wetter, Rahmentermine, Verlauf und
+        # Inhaltsverzeichnis komplett entfernen - übrig bleibt nur die
+        # Dokumentations-/Veranlassungstabelle, beginnend direkt mit der
+        # Überschrift "Dokumentation:". Wichtig für "Bericht in 2 Teilen
+        # erstellen": Teil 2 soll ausschließlich Feststellungen enthalten.
+        body = doc.element.body
+        stop_el = dokumentation_p._p
+        to_remove = []
+        el = body[0]
+        while el is not None and el is not stop_el:
+            nxt = el.getnext()
+            to_remove.append(el)
+            el = nxt
+        for el in to_remove:
+            body.remove(el)
+        # Die besondere Titelblatt-Fußzeile (ohne Seitenzahl, mit
+        # abschließendem Strich) würde sonst fälschlich auf die jetzt
+        # erste Seite (Dokumentation) angewendet - stattdessen die normale
+        # Kopf-/Fußzeile mit Seitenzahl und Dateiname auf allen Seiten nutzen.
+        doc.sections[0].different_first_page_header_footer = False
 
+    doc.save(out_path)
     # Word anweisen, Felder (Seitenzahl-Felder etc.) beim Öffnen automatisch
     # neu zu berechnen, statt den eingebetteten Platzhalterwert stehen zu lassen.
     import zipfile

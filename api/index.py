@@ -55,7 +55,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             out_path = '/tmp/bericht.docx'
-            report_core.build(TEMPLATE_PATH, data, out_path, tmp_dir='/tmp/report_photos')
+            report_core.build(TEMPLATE_PATH, data, out_path, tmp_dir='/tmp/report_photos',
+                               only_content=bool(data.get('onlyContent')))
 
             bk = data.get('berichtskopf', {})
             dateiname = bk.get('dateiname') or (
