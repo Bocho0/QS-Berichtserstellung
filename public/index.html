@@ -225,17 +225,14 @@
         </div>
         <div><label>Temperatur Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22,0°C"></div>
         <div class="full" id="wetterStatus" style="font-size:12px;color:var(--muted);display:none;"></div>
-        <div class="full"><label>Dateiname (Fußzeile) <span style="font-weight:400;color:var(--muted)">(wird automatisch aus Datum + Kürzel gebildet, bei Bedarf überschreibbar)</span></label><input type="text" id="rDateiname" placeholder="z. B. 260910_QS-Bericht-NFM.docx"></div>
-      </div>
-      <label>Firmenlogo <span style="font-weight:400;color:var(--muted)">(optional, nur für diese Sitzung)</span></label>
-      <div class="logo-upload">
-        <input type="file" accept="image/*" id="logoInput" onchange="handleLogo(event)">
-        <img id="logoPreview" style="display:none">
+        <input type="text" id="rDateiname" style="display:none" aria-hidden="true">
       </div>
 
       <div class="hint" style="margin-top:14px">Verteiler und Rahmentermine werden nicht mehr hier eingetippt — sie kommen entweder aus einer hochgeladenen Berichtsdatei (JSON) oder werden später direkt im fertigen Word-Dokument ergänzt.</div>
       <textarea class="mono" id="rVerteiler" style="display:none" aria-hidden="true"></textarea>
       <textarea class="mono" id="rRahmen" style="display:none" aria-hidden="true"></textarea>
+      <input type="file" accept="image/*" id="logoInput" style="display:none" aria-hidden="true">
+      <img id="logoPreview" style="display:none">
 
       <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
       <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
@@ -259,11 +256,16 @@
       <button class="btn-primary" onclick="generateWordReport()" id="genWordBtn">Word-Bericht erstellen</button>
       <div class="hint" id="genWordHint">Erstellt die fertige Word-Datei direkt hier, im exakten Vorlagenformat — kein Chat-Umweg nötig.</div>
 
-      <button class="btn-secondary" style="margin-top:10px" onclick="splitAndDownloadReport()" id="splitBtn">Bericht in 2 Teilen erstellen</button>
-      <div class="hint" id="splitHint">Nur nötig, wenn oben eine Meldung zu zu großer Datenmenge erscheint (z. B. bei vielen Fotos) — teilt in zwei Word-Dateien auf, ohne Fotoqualität zu verlieren.</div>
-
       <button class="btn-primary" onclick="exportForWordReport()" id="genJsonBtn">Berichtsdaten herunterladen (.json)</button>
       <div class="hint">Zum Fortführen dieser Baustelle beim nächsten Termin oder im nächsten Bericht wieder hochladen (Tab „Erfassen" → „Vorherige Sitzung laden") — dient außerdem als Sicherung und lässt sich alternativ im Chat mit Claude zu einem Word-Bericht verarbeiten.</div>
+
+      <details class="help" style="margin-top:14px">
+        <summary>Bericht in 2 Teilen erstellen (bei zu großer Datenmenge)</summary>
+        <div class="ex">Nur nötig, wenn oben beim Word-Bericht eine Meldung zu zu großer Datenmenge erscheint (z. B. bei vielen Fotos) — teilt in zwei Word-Dateien auf, ohne Fotoqualität zu verlieren.</div>
+        <button class="btn-secondary small" style="margin-top:8px" onclick="splitAndDownloadReport()" id="splitBtn">Bericht in 2 Teilen erstellen</button>
+        <button class="btn-secondary small" style="margin-top:8px;display:none" onclick="downloadTeil2()" id="splitBtn2">Teil 2 herunterladen</button>
+        <div class="hint" id="splitHint"></div>
+      </details>
 
       <details class="help" style="margin-top:14px">
         <summary>Sammlung vollständig abschließen (Zwischenspeicher leeren)</summary>
@@ -371,7 +373,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen','rDateiname'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
 
 async function idbPutMeta(key, value){
   try{
@@ -526,22 +528,21 @@ function guessKuerzel(){
   return projekt;
 }
 
-// Dateiname automatisch aus Datum + Baustellen-Kürzel ableiten:
-// JJMMTT_QS-Bericht-Kürzel, z. B. "260910_QS-Bericht-NFM.docx".
+// Dateiname automatisch aus Datum + Berichts-Nr. + Baustellen-Kürzel
+// ableiten: JJMMTT_QS-Bericht-Nr-Kürzel, z. B. "260910_QS-Bericht-4-CHA.docx".
+// Wird bei jeder Berichtserstellung frisch berechnet (nicht nur einmalig bei
+// Verlassen eines Feldes gespeichert), damit er auch dann stimmt, wenn sich
+// Datum/Projekt/Nr. zwischenzeitlich geändert haben.
 function autoDateinameFromInputs(){
   const iso = parseGermanDateToISO(document.getElementById('rDatum').value);
   const kuerzel = guessKuerzel();
+  const nr = document.getElementById('rBerichtsNr').value.trim();
   if(!iso || !kuerzel) return '';
   const jj = iso.slice(2,4), mm = iso.slice(5,7), tt = iso.slice(8,10);
-  return `${jj}${mm}${tt}_QS-Bericht-${kuerzel.replace(/[^A-Za-z0-9äöüÄÖÜß-]+/g,'')}.docx`;
-}
-
-function maybeAutoFillDateiname(){
-  const el = document.getElementById('rDateiname');
-  if(el && !el.value.trim()){
-    const auto = autoDateinameFromInputs();
-    if(auto){ el.value = auto; scheduleBerichtskopfSave(); }
-  }
+  const kuerzelClean = kuerzel.replace(/[^A-Za-z0-9äöüÄÖÜß-]+/g,'');
+  return nr
+    ? `${jj}${mm}${tt}_QS-Bericht-${nr}-${kuerzelClean}.docx`
+    : `${jj}${mm}${tt}_QS-Bericht-${kuerzelClean}.docx`;
 }
 
 async function fetchWeatherForDate(){
@@ -561,31 +562,22 @@ async function fetchWeatherForDate(){
 
   showStatus('Temperatur wird für ' + location + ' am ' + document.getElementById('rDatum').value + ' ermittelt …');
   try{
-    const geoRes = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(location) + '&count=1&language=de&format=json');
-    if(!geoRes.ok) throw new Error('Geokodierung fehlgeschlagen (' + geoRes.status + ')');
-    const geo = await geoRes.json();
-    if(!geo.results || !geo.results.length){
-      showStatus('Temperatur: Ort "' + location + '" nicht gefunden — bitte manuell eintragen.');
+    // Läuft über die eigene Serverfunktion /api/weather statt direkt über
+    // Open-Meteo - direkte Browser-Aufrufe scheiterten mit einem CORS-Fehler
+    // (Open-Meteo sendet für geocoding-api.open-meteo.com keinen
+    // Access-Control-Allow-Origin-Header, der Browser blockt die Antwort
+    // deshalb). Server-zu-Server-Aufrufe sind davon nicht betroffen.
+    const res = await fetch('/api/weather?ort=' + encodeURIComponent(location) + '&datum=' + isoDate);
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+      showStatus('Temperatur: ' + (data.error || ('Fehler ' + res.status)) + ' — bitte manuell eintragen.');
       return;
     }
-    const { latitude, longitude, name } = geo.results[0];
-
-    const wUrl = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + latitude + '&longitude=' + longitude +
-      '&start_date=' + isoDate + '&end_date=' + isoDate + '&daily=temperature_2m_max,temperature_2m_min&timezone=auto';
-    const wRes = await fetch(wUrl);
-    if(!wRes.ok) throw new Error('Wetterabruf fehlgeschlagen (' + wRes.status + ')');
-    const wdata = await wRes.json();
-    const tMax = wdata.daily && wdata.daily.temperature_2m_max && wdata.daily.temperature_2m_max[0];
-    const tMin = wdata.daily && wdata.daily.temperature_2m_min && wdata.daily.temperature_2m_min[0];
-    if(tMax === undefined || tMin === undefined || tMax === null || tMin === null){
-      showStatus('Temperatur: Für dieses Datum liegen keine Daten vor (z. B. weil es in der Zukunft liegt) — bitte manuell eintragen.');
-      return;
-    }
-    document.getElementById('rTempMin').value = tMin.toFixed(1) + '°C';
-    document.getElementById('rTempMax').value = tMax.toFixed(1) + '°C';
+    document.getElementById('rTempMin').value = data.tempMin.toFixed(1) + '°C';
+    document.getElementById('rTempMax').value = data.tempMax.toFixed(1) + '°C';
     scheduleBerichtskopfSave();
     refreshReportViews();
-    showStatus('Temperatur für ' + name + ' am ' + document.getElementById('rDatum').value + ' übernommen (Quelle: Open-Meteo). Bei Bedarf hier manuell anpassen.');
+    showStatus('Temperatur für ' + data.ort + ' am ' + document.getElementById('rDatum').value + ' übernommen (Quelle: Open-Meteo). Bei Bedarf hier manuell anpassen.');
   }catch(err){
     console.error(err);
     showStatus('Temperatur konnte nicht automatisch ermittelt werden — bitte manuell eintragen.');
@@ -594,17 +586,15 @@ async function fetchWeatherForDate(){
 
 // Beim Verlassen des Datumsfelds automatisch versuchen, sofern die
 // Temperaturfelder noch leer sind (manuell eingetragene Werte werden nie
-// überschrieben) - und ebenso den Dateinamen automatisch ableiten.
+// überschrieben). Der Dateiname selbst wird nicht mehr hier zwischen-
+// gespeichert, sondern bei jeder Berichtserstellung frisch berechnet
+// (siehe autoDateinameFromInputs()).
 document.getElementById('rDatum').addEventListener('blur', () => {
   if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim()){
     fetchWeatherForDate();
   }
-  maybeAutoFillDateiname();
 });
-// Auch beim Eintragen von Projekt/Baustelle (liefert das Kürzel bzw. den
-// Ort) automatisch nachziehen, falls Datum bereits gesetzt ist.
 document.getElementById('rProjekt').addEventListener('blur', () => {
-  maybeAutoFillDateiname();
   if(!document.getElementById('rTempMin').value.trim() && !document.getElementById('rTempMax').value.trim() && document.getElementById('rDatum').value.trim()){
     fetchWeatherForDate();
   }
@@ -723,7 +713,10 @@ function buildBerichtskopfPayload(){
     tempMax: document.getElementById('rTempMax').value,
     verteiler: document.getElementById('rVerteiler').value,
     rahmentermine: document.getElementById('rRahmen').value,
-    dateiname: document.getElementById('rDateiname').value.trim()
+    // Immer frisch berechnet (JJMMTT_QS-Bericht-Nr-Kürzel) statt aus einem
+    // Eingabefeld gelesen - so stimmt er garantiert auch dann, wenn Datum/
+    // Nr./Projekt sich seit dem letzten Mal geändert haben.
+    dateiname: autoDateinameFromInputs() || 'bericht.docx'
   };
 }
 
@@ -768,10 +761,15 @@ async function generateWordReport(){
 // als zwei separate Word-Dateien herunterladen. Löst die 4,5-MB-Grenze,
 // ohne die Fotoqualität reduzieren zu müssen. Dokumentations-Feststellungen
 // werden dabei fortlaufend nummeriert (Teil 2 setzt die Nr. von Teil 1 fort).
+// Zwischenspeicher fuer Teil 2, bis der Nutzer den eigenen "Teil 2
+// herunterladen"-Button klickt (siehe Begruendung unten).
+let pendingTeil2Payload = null;
+
 async function splitAndDownloadReport(){
   if(allEntries.length < 2){ alert('Dafür werden mindestens 2 Feststellungen benötigt.'); return; }
   const btn = document.getElementById('splitBtn');
   const hint = document.getElementById('splitHint');
+  const teil2Btn = document.getElementById('splitBtn2');
 
   const sorted = allEntries.slice().sort((a,b) => (a.sortOrder||0)-(b.sortOrder||0));
   const sizes = sorted.map(e => JSON.stringify(e).length);
@@ -785,13 +783,14 @@ async function splitAndDownloadReport(){
   const teil1 = sorted.slice(0, splitIdx);
   const teil2 = sorted.slice(splitIdx);
 
-  if(!confirm('Bericht in 2 Dateien aufteilen?\n\nTeil 1: ' + teil1.length + ' Feststellungen\nTeil 2: ' + teil2.length + ' Feststellungen\n\nBeide Dateien werden nacheinander heruntergeladen. Danach wird der Zwischenspeicher geleert, wie bei der normalen Berichtserstellung.')) return;
+  if(!confirm('Bericht in 2 Dateien aufteilen?\n\nTeil 1: ' + teil1.length + ' Feststellungen\nTeil 2: ' + teil2.length + ' Feststellungen\n\nTeil 1 wird jetzt heruntergeladen. Browser blockieren mehrere automatische Downloads hintereinander - für Teil 2 erscheint danach ein eigener Button.')) return;
 
   btn.disabled = true; btn.textContent = 'Erstelle Teil 1 …';
   hint.textContent = '';
+  teil2Btn.style.display = 'none';
 
   const baseBk = buildBerichtskopfPayload();
-  const baseName = (baseBk.dateiname || autoDateinameFromInputs() || 'bericht.docx').replace(/\.docx$/i, '');
+  const baseName = baseBk.dateiname.replace(/\.docx$/i, '');
   const startNr1 = getStartNr();
   const dokuCount1 = teil1.filter(e => e.type === 'doku').length;
   const startNr2 = startNr1 + dokuCount1;
@@ -807,20 +806,18 @@ async function splitAndDownloadReport(){
       return;
     }
 
-    btn.textContent = 'Erstelle Teil 2 …';
-    const payload2 = {
+    // Teil 2 NICHT sofort automatisch herunterladen - Browser blockieren
+    // einen zweiten, unmittelbar folgenden automatischen Download ohne
+    // eigene Nutzeraktion dazwischen (Anti-Spam-Schutz). Stattdessen: Teil 2
+    // vorbereiten und einen eigenen Button zum Herunterladen anzeigen.
+    pendingTeil2Payload = {
       berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-2-von-2.docx' },
       entries: teil2, verlauf: verlaufEntries, startNr: startNr2
     };
-    const r2 = await requestAndDownloadWordDoc(payload2);
-    if(r2.tooLarge){
-      alert('Teil 1 ("' + r1.filename + '") wurde bereits heruntergeladen. Teil 2 ist mit ca. ' + r2.estMB.toFixed(1) + ' MB aber immer noch zu groß — bitte diesen Button erneut auf die verbleibenden Feststellungen anwenden oder in mehr Teile aufteilen.');
-      return;
-    }
-
-    hint.textContent = 'Fertig — "' + r1.filename + '" und "' + r2.filename + '" wurden heruntergeladen.';
-    await idbClearEntries();
-    await idbDeleteMetaKey('berichtskopf');
+    hint.textContent = 'Teil 1 ("' + r1.filename + '") heruntergeladen. Jetzt Teil 2 herunterladen:';
+    teil2Btn.style.display = 'block';
+    teil2Btn.disabled = false;
+    teil2Btn.textContent = 'Teil 2 herunterladen (' + teil2.length + ' Feststellungen)';
   }catch(err){
     console.error(err);
     alert('Aufteilen fehlgeschlagen: ' + (err && err.message ? err.message : err));
@@ -829,31 +826,42 @@ async function splitAndDownloadReport(){
   }
 }
 
+async function downloadTeil2(){
+  if(!pendingTeil2Payload){ alert('Bitte zuerst Teil 1 erstellen.'); return; }
+  const teil2Btn = document.getElementById('splitBtn2');
+  const hint = document.getElementById('splitHint');
+  teil2Btn.disabled = true; teil2Btn.textContent = 'Erstelle Teil 2 …';
+  try{
+    const r2 = await requestAndDownloadWordDoc(pendingTeil2Payload);
+    if(r2.tooLarge){
+      alert('Teil 2 ist mit ca. ' + r2.estMB.toFixed(1) + ' MB immer noch zu groß — bitte in mehr Teile aufteilen oder die Rohdaten im Chat bei Claude hochladen.');
+      teil2Btn.disabled = false; teil2Btn.textContent = 'Teil 2 herunterladen';
+      return;
+    }
+    hint.textContent = 'Fertig — beide Teile wurden heruntergeladen.';
+    teil2Btn.style.display = 'none';
+    pendingTeil2Payload = null;
+    await idbClearEntries();
+    await idbDeleteMetaKey('berichtskopf');
+  }catch(err){
+    console.error(err);
+    alert('Teil 2 konnte nicht erstellt werden: ' + (err && err.message ? err.message : err));
+    teil2Btn.disabled = false; teil2Btn.textContent = 'Teil 2 herunterladen';
+  }
+}
+
 function exportForWordReport(){
   const payload = {
-    berichtskopf: {
-      projekt: document.getElementById('rProjekt').value,
-      baustelle: document.getElementById('rBaustelle').value,
-      kunde: document.getElementById('rKunde').value,
-      verfasser: document.getElementById('rVerfasser').value,
-      datum: document.getElementById('rDatum').value,
-      berichtsNr: document.getElementById('rBerichtsNr').value,
-      tempMin: document.getElementById('rTempMin').value,
-      tempMax: document.getElementById('rTempMax').value,
-      verteiler: document.getElementById('rVerteiler').value,
-      rahmentermine: document.getElementById('rRahmen').value,
-      dateiname: document.getElementById('rDateiname').value.trim()
-    },
+    berichtskopf: buildBerichtskopfPayload(),
     entries: allEntries,
     verlauf: verlaufEntries,
     startNr: getStartNr()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const ts = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'qs-rohdaten-fuer-claude_' + ts + '.json';
+  a.download = (autoDateinameFromInputs() || 'qs-bericht.docx').replace(/\.docx$/i, '.json');
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
