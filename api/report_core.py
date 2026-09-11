@@ -403,7 +403,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
         toc_text_rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
 
         toc_heading = parse_xml(f'''<w:p xmlns:w="{W}">
-          <w:pPr><w:spacing w:before="160" w:after="100"/></w:pPr>
+          <w:pPr><w:spacing w:before="820" w:after="100"/></w:pPr>
           <w:r>{ref_rpr_xml}<w:t>Inhaltsverzeichnis</w:t></w:r>
         </w:p>''')
         pagebreak_p._p.addprevious(toc_heading)
@@ -770,6 +770,17 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
             parts += [''] * (4 - len(parts))
             values = parts[:4]
             row_tr = vt.rows[i + 1]._tr
+            # Zeile 1 der Vorlage hatte eine versteckte trPr-Eigenschaft
+            # (gridAfter/wAfter), die Platz für "unsichtbare" Spalten
+            # reserviert und dadurch die echten Zellen der ersten Zeile
+            # gegenüber allen anderen Zeilen verschob - hier für jede
+            # befüllte Zeile vorsorglich entfernen.
+            trPr = row_tr.find(qn('w:trPr'))
+            if trPr is not None:
+                for tag in ('w:gridAfter', 'w:wAfter', 'w:gridBefore', 'w:wBefore'):
+                    el = trPr.find(qn(tag))
+                    if el is not None:
+                        trPr.remove(el)
             for old_tc in list(row_tr.findall(qn('w:tc'))):
                 row_tr.remove(old_tc)
             for htc, val in zip(header_tcs, values):
