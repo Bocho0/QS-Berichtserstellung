@@ -90,11 +90,27 @@
   .edit-group h3{ font-size:13px; text-transform:uppercase; letter-spacing:0.03em; margin:16px 0 8px; color:var(--muted); }
   .edit-group h3:first-child{ margin-top:0; }
   .edit-row{ display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--concrete-2); }
-  .edit-thumb img{ width:56px; height:56px; object-fit:cover; border-radius:3px; border:1px solid var(--line); }
+  .edit-thumb img{ width:130px; height:130px; object-fit:cover; border-radius:3px; border:1px solid var(--line); cursor:zoom-in; }
   .edit-fields{ flex:1; display:flex; flex-direction:column; gap:6px; }
   .edit-fields input, .edit-fields textarea{ padding:7px 8px; font-size:13px; margin:0; }
   .edit-fields textarea{ min-height:44px; }
   .edit-row{ align-items:flex-start; }
+  .badge.orange{ background:var(--orange); color:var(--white); }
+  .edit-status{ margin-bottom:6px; }
+  .edit-count{ font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:12px; }
+  .editor-toolbar{ display:flex; justify-content:flex-end; margin-bottom:4px; }
+  .editor-toolbar button{ width:auto; }
+  .lightbox{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:100; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; }
+  .lightbox.active{ display:flex; }
+  .lightbox img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:4px; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
+  @media (min-width:860px){
+    .container{ max-width:1120px; }
+    #view-report .edit-row{ display:grid; grid-template-columns:auto 300px 1fr; gap:18px; align-items:start; padding:18px 0; }
+    #view-report .edit-thumb img{ width:300px; height:300px; }
+    #view-report .edit-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
+    #view-report .edit-fields textarea{ grid-column:1 / -1; min-height:90px; }
+    #view-report .edit-status, #view-report .edit-actions{ grid-column:1 / -1; }
+  }
   .drag-handle{ width:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--muted); cursor:grab; touch-action:none; user-select:none; padding-top:14px; }
   .edit-row.dragging{ opacity:0.85; box-shadow:0 6px 16px rgba(0,0,0,0.18); background:var(--white); position:relative; z-index:5; }
   .order-btns{ display:flex; flex-direction:column; gap:4px; flex-shrink:0; padding-top:2px; }
@@ -191,6 +207,9 @@
       <div class="hint">Fotos werden direkt in deine Fotogalerie gespeichert (Button "Galerie" bei jedem Eintrag). Die Textangaben bleiben in dieser Sitzung erhalten. Für einen Monatsbericht mit mehreren Besichtigungen: am Ende jeder Besichtigung unten im Bericht-Tab "1. Berichtsdaten herunterladen" — die Datei beim nächsten Termin hier wieder laden, dann geht es mit denselben Einträgen weiter.</div>
       <label style="margin-top:14px">Vorherige Sitzung laden (fortsetzen)</label>
       <input type="file" accept=".json" id="continueImportInput" onchange="importContinueFile(event)">
+
+      <button type="button" class="btn-secondary" style="margin-top:14px" onclick="exportForWordReport()">Baustellenbesuch beenden — Fotos als .json sichern</button>
+      <div class="hint">Direkt hier auf der Baustelle sichern, ohne in den Bericht-Tab zu wechseln. Die genauen Feststellungstexte trägst du später am Bildschirm im Büro ein (Tab „Bericht" → „Reihenfolge &amp; Text bearbeiten").</div>
     </div>
 
     <div class="card">
@@ -253,10 +272,13 @@
 
     <div class="card no-print">
       <h2>Reihenfolge &amp; Text bearbeiten</h2>
+      <div class="editor-toolbar">
+        <button type="button" class="btn-secondary small" id="editorFilterBtn" onclick="toggleEditorFilter()">Nur unbearbeitete anzeigen</button>
+      </div>
       <div class="edit-group">
-        <h3>Dokumentation</h3>
+        <h3 id="editorDokuHeading">Dokumentation</h3>
         <div id="editorDoku"><div class="empty">Keine Einträge</div></div>
-        <h3>Veranlassungen</h3>
+        <h3 id="editorVeranlHeading">Veranlassungen</h3>
         <div id="editorVeranl"><div class="empty">Keine Einträge</div></div>
       </div>
     </div>
@@ -303,6 +325,10 @@
     Bericht
   </button>
 </nav>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightboxImg" src="">
+</div>
 
 <script>
 let allEntries = [];
@@ -1026,7 +1052,7 @@ function handlePhoto(e){
       const entry = {
         id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
         bauteil: '', material: '', verantwortlich: '', kuerzel: '',
-        datum: todayStr(), datumISO: nowIso,
+        datum: todayStr(), datumISO: nowIso, bearbeitet: false,
         sortOrder: Date.now(), photoUrl: previewDataUrl, createdAt: Date.now()
       };
       allEntries.push(entry);
@@ -1102,7 +1128,8 @@ async function saveEntryEdit(id){
     material: document.getElementById('ed_material_'+id).value.trim(),
     bauteil: document.getElementById('ed_bauteil_'+id).value.trim(),
     datum: document.getElementById('ed_datum_'+id).value.trim(),
-    kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim()
+    kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim(),
+    bearbeitet: true
   };
   if(e.type === 'veranlassung'){
     const vEl = document.getElementById('ed_verantwortlich_'+id);
@@ -1233,17 +1260,42 @@ function refreshReportViews(){
   renderReport();
 }
 
+// Ob im Editor nur unbearbeitete Feststellungen angezeigt werden - hilfreich,
+// wenn im Büro viele auf der Baustelle nur fotografierte, noch textlose
+// Einträge (aus einem oder mehreren Terminen) der Reihe nach abgearbeitet
+// werden sollen, ohne bereits fertige Einträge dazwischen zu haben.
+let editorShowOnlyOpen = false;
+
+function toggleEditorFilter(){
+  editorShowOnlyOpen = !editorShowOnlyOpen;
+  const btn = document.getElementById('editorFilterBtn');
+  if(btn) btn.textContent = editorShowOnlyOpen ? 'Alle anzeigen' : 'Nur unbearbeitete anzeigen';
+  renderEditor();
+}
+
 function renderEditor(){
   const doku = allEntries.filter(e=>e.type==='doku').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
   const veranl = allEntries.filter(e=>e.type==='veranlassung').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
-  const build = (list) => list.map((e, idx) => `
+
+  const dokuDone = doku.filter(e=>e.bearbeitet).length;
+  const veranlDone = veranl.filter(e=>e.bearbeitet).length;
+  const dokuHeading = document.getElementById('editorDokuHeading');
+  const veranlHeading = document.getElementById('editorVeranlHeading');
+  if(dokuHeading) dokuHeading.innerHTML = 'Dokumentation ' + (doku.length ? `<span class="edit-count">(${dokuDone} von ${doku.length} bearbeitet)</span>` : '');
+  if(veranlHeading) veranlHeading.innerHTML = 'Veranlassungen ' + (veranl.length ? `<span class="edit-count">(${veranlDone} von ${veranl.length} bearbeitet)</span>` : '');
+
+  const build = (fullList) => {
+    const list = editorShowOnlyOpen ? fullList.filter(e=>!e.bearbeitet) : fullList;
+    if(!list.length) return `<div class="empty">${editorShowOnlyOpen ? 'Keine unbearbeiteten Einträge mehr' : 'Keine Einträge'}</div>`;
+    return list.map((e, idx) => `
     <div class="edit-row" data-id="${e.id}">
       <div class="order-btns">
         <button type="button" class="order-btn" onclick="moveEntry('${e.id}','up')" ${idx===0 ? 'disabled' : ''} title="Nach oben verschieben">▲</button>
         <button type="button" class="order-btn" onclick="moveEntry('${e.id}','down')" ${idx===list.length-1 ? 'disabled' : ''} title="Nach unten verschieben">▼</button>
       </div>
-      <div class="edit-thumb"><img src="${e.photoUrl}"></div>
+      <div class="edit-thumb"><img src="${e.photoUrl}" onclick="openLightboxById('${e.id}')" title="Zum Vergrößern klicken"></div>
       <div class="edit-fields">
+        <div class="edit-status">${e.bearbeitet ? '' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
         <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
         <input type="text" id="ed_ort_${e.id}" value="${escapeHtml(e.ort)}" placeholder="Ort">
         <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
@@ -1261,10 +1313,21 @@ function renderEditor(){
       </div>
     </div>
   `).join('');
+  };
   const dokuContainer = document.getElementById('editorDoku');
   const veranlContainer = document.getElementById('editorVeranl');
-  dokuContainer.innerHTML = doku.length ? build(doku) : '<div class="empty">Keine Einträge</div>';
-  veranlContainer.innerHTML = veranl.length ? build(veranl) : '<div class="empty">Keine Einträge</div>';
+  dokuContainer.innerHTML = build(doku);
+  veranlContainer.innerHTML = build(veranl);
+}
+
+function openLightboxById(id){
+  const e = allEntries.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('lightboxImg').src = e.photoUrl;
+  document.getElementById('lightbox').classList.add('active');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('active');
 }
 
 // Reihenfolge per Auf/Ab-Button ändern - statt freiem Ziehen (dabei kam es zu
