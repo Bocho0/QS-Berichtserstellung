@@ -51,7 +51,7 @@
   .type-toggle button.on[data-type="doku"]{ background:var(--charcoal); color:var(--white); border-color:var(--charcoal); }
   .type-toggle button.on[data-type="veranlassung"]{ background:var(--rust); color:var(--white); border-color:var(--rust); }
   label.photo-box{ border:2px dashed var(--line); border-radius:var(--radius); background:var(--concrete); text-align:center; padding:22px 12px; cursor:pointer; position:relative; overflow:hidden; display:block; }
-  .photo-box img{ display:block; width:100%; height:280px; object-fit:contain; background:var(--concrete-2); border-radius:2px; }
+  .photo-box img{ display:block; width:100%; max-height:280px; object-fit:cover; border-radius:2px; }
   .photo-box .cta{ color:var(--muted); font-weight:600; font-size:14px; }
   .photo-box .cta .big{ display:block; font-family:'Archivo'; font-size:17px; color:var(--charcoal); margin-top:6px; }
   .photo-box svg{ width:34px; height:34px; color:var(--muted); }
@@ -63,7 +63,7 @@
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .recent-item{ display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--concrete-2); align-items:center; }
   .recent-item:last-child{ border-bottom:none; }
-  .recent-item img{ width:110px; height:110px; object-fit:contain; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
+  .recent-item img{ width:92px; height:92px; object-fit:cover; border-radius:3px; flex-shrink:0; background:var(--concrete-2); }
   .recent-item .meta{ flex:1; min-width:0; }
   .recent-item .meta .t1{ font-weight:700; font-size:13px; }
   .recent-item .meta .t2{ font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -90,36 +90,11 @@
   .edit-group h3{ font-size:13px; text-transform:uppercase; letter-spacing:0.03em; margin:16px 0 8px; color:var(--muted); }
   .edit-group h3:first-child{ margin-top:0; }
   .edit-row{ display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--concrete-2); }
-  .edit-thumb img{ width:130px; height:130px; object-fit:contain; background:var(--concrete-2); border-radius:3px; border:1px solid var(--line); cursor:zoom-in; }
+  .edit-thumb img{ width:56px; height:56px; object-fit:cover; border-radius:3px; border:1px solid var(--line); }
   .edit-fields{ flex:1; display:flex; flex-direction:column; gap:6px; }
   .edit-fields input, .edit-fields textarea{ padding:7px 8px; font-size:13px; margin:0; }
   .edit-fields textarea{ min-height:44px; }
   .edit-row{ align-items:flex-start; }
-  .badge.orange{ background:var(--orange); color:var(--white); }
-  .badge.green{ background:var(--green); color:var(--white); }
-  .edit-status{ margin-bottom:6px; }
-  .edit-count{ font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:12px; }
-  .editor-toolbar{ display:flex; justify-content:flex-end; margin-bottom:4px; }
-  .editor-toolbar button{ width:auto; }
-  .lightbox{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:100; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; }
-  .lightbox.active{ display:flex; }
-  .lightbox img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:4px; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
-  table.editable-table{ width:100%; border-collapse:collapse; margin-top:6px; }
-  table.editable-table th{ font-size:11px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
-  table.editable-table td{ padding:4px 6px; border-bottom:1px solid var(--concrete-2); vertical-align:middle; }
-  table.editable-table td.ro-cell{ font-size:13px; color:var(--ink); }
-  table.editable-table input, table.editable-table select{ padding:6px 7px; font-size:13px; margin:0; background:var(--white); }
-  .input-suffix{ display:flex; align-items:center; gap:5px; background:var(--white); border:1.5px solid var(--line); border-radius:var(--radius); padding-right:8px; }
-  .input-suffix input{ flex:1; min-width:0; border:none !important; background:none !important; padding-right:2px !important; }
-  .input-suffix input:focus{ outline:none; }
-  .input-suffix span{ font-size:13px; color:var(--muted); flex-shrink:0; }
-  @media (min-width:860px){
-    .container{ max-width:1120px; }
-    #view-report .edit-row{ display:grid; grid-template-columns:auto 300px 1fr; gap:18px; align-items:start; padding:18px 0; }
-    #view-report .edit-thumb img{ width:300px; height:300px; }    #view-report .edit-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
-    #view-report .edit-fields textarea{ grid-column:1 / -1; min-height:90px; }
-    #view-report .edit-status, #view-report .edit-actions{ grid-column:1 / -1; }
-  }
   .drag-handle{ width:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--muted); cursor:grab; touch-action:none; user-select:none; padding-top:14px; }
   .edit-row.dragging{ opacity:0.85; box-shadow:0 6px 16px rgba(0,0,0,0.18); background:var(--white); position:relative; z-index:5; }
   .order-btns{ display:flex; flex-direction:column; gap:4px; flex-shrink:0; padding-top:2px; }
@@ -216,9 +191,6 @@
       <div class="hint">Fotos werden direkt in deine Fotogalerie gespeichert (Button "Galerie" bei jedem Eintrag). Die Textangaben bleiben in dieser Sitzung erhalten. Für einen Monatsbericht mit mehreren Besichtigungen: am Ende jeder Besichtigung unten im Bericht-Tab "1. Berichtsdaten herunterladen" — die Datei beim nächsten Termin hier wieder laden, dann geht es mit denselben Einträgen weiter.</div>
       <label style="margin-top:14px">Vorherige Sitzung laden (fortsetzen)</label>
       <input type="file" accept=".json" id="continueImportInput" onchange="importContinueFile(event)">
-
-      <button type="button" class="btn-secondary" style="margin-top:14px" onclick="exportForWordReport()">Baustellenbesuch beenden — Fotos als .json sichern</button>
-      <div class="hint">Direkt hier auf der Baustelle sichern, ohne in den Bericht-Tab zu wechseln. Die genauen Feststellungstexte trägst du später am Bildschirm im Büro ein (Tab „Bericht" → „Reihenfolge &amp; Text bearbeiten").</div>
     </div>
 
     <div class="card">
@@ -275,37 +247,16 @@
       <textarea class="mono" id="rVerteiler" style="display:none" aria-hidden="true"></textarea>
       <textarea class="mono" id="rRahmen" style="display:none" aria-hidden="true"></textarea>
 
-      <details class="help" style="margin-top:14px" open>
-        <summary>Rahmentermine festlegen (einmalig pro Projekt)</summary>
-        <div class="ex" style="font-family:inherit;white-space:normal">Hier einmal zu Projektbeginn Haus, Gewerk und die Ausführung nach TP (von/bis) je Zeile anlegen. Bei jedem weiteren Bericht müssen dann nur noch Bautenstand, Prozent, Pünktlichkeit und ggf. Prognose unten aktualisiert werden — die Liste selbst bleibt gleich.</div>
-        <label style="margin-top:12px">Hinweistext über der Tabelle <span style="font-weight:400;color:var(--muted)">(projektspezifisch, erscheint im Bericht — z. B. auf welchen Terminplan sich „TP vom" bezieht)</span></label>
-        <input type="text" id="rRahmenHinweis" placeholder="z. B. Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)">
-        <div id="rahmenSetupEditor" style="margin-top:10px"></div>
-        <button type="button" class="btn-secondary small" style="margin-top:8px" onclick="addRahmenRow()">+ Zeile hinzufügen</button>
-      </details>
-
-      <label style="margin-top:18px">Bautenstand &amp; Pünktlichkeit <span style="font-weight:400;color:var(--muted)">(bei jedem Bericht aktualisieren)</span></label>
-      <div id="rahmenStatusEditor"></div>
-
-      <details class="help" style="margin-top:14px">
-        <summary>Verteilerliste</summary>
-        <div id="verteilerEditor" style="margin-top:10px"></div>
-        <button type="button" class="btn-secondary small" style="margin-top:8px" onclick="addVerteilerRow()">+ Empfänger hinzufügen</button>
-      </details>
-
       <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
       <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
     </div>
 
     <div class="card no-print">
       <h2>Reihenfolge &amp; Text bearbeiten</h2>
-      <div class="editor-toolbar">
-        <button type="button" class="btn-secondary small" id="editorFilterBtn" onclick="toggleEditorFilter()">Nur unbearbeitete anzeigen</button>
-      </div>
       <div class="edit-group">
-        <h3 id="editorDokuHeading">Dokumentation</h3>
+        <h3>Dokumentation</h3>
         <div id="editorDoku"><div class="empty">Keine Einträge</div></div>
-        <h3 id="editorVeranlHeading">Veranlassungen</h3>
+        <h3>Veranlassungen</h3>
         <div id="editorVeranl"><div class="empty">Keine Einträge</div></div>
       </div>
     </div>
@@ -352,10 +303,6 @@
     Bericht
   </button>
 </nav>
-
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
-  <img id="lightboxImg" src="">
-</div>
 
 <script>
 let allEntries = [];
@@ -439,7 +386,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen','rRahmenHinweis'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen'];
 
 async function idbPutMeta(key, value){
   try{
@@ -528,9 +475,6 @@ async function idbClearAll(){
 async function restoreFromIdb(){
   const stored = await idbGetAllEntries();
   await restoreBerichtskopfFromIdb();
-  renderVerteilerEditor();
-  renderRahmenSetup();
-  renderRahmenStatus();
   const storedVerlauf = await idbGetMeta('verlauf');
   if(Array.isArray(storedVerlauf) && storedVerlauf.length){
     verlaufEntries = storedVerlauf;
@@ -712,7 +656,6 @@ function buildBerichtskopfPayload(){
     tempMax: document.getElementById('rTempMax').value,
     verteiler: document.getElementById('rVerteiler').value,
     rahmentermine: document.getElementById('rRahmen').value,
-    rahmenHinweis: document.getElementById('rRahmenHinweis').value,
     // Immer frisch berechnet (JJMMTT_QS-Bericht-Nr-Kürzel) statt aus einem
     // Eingabefeld gelesen - so stimmt er garantiert auch dann, wenn Datum/
     // Nr./Projekt sich seit dem letzten Mal geändert haben.
@@ -921,7 +864,6 @@ async function importContinueFile(e){
       setIfEmpty('rBerichtsNr', bk.berichtsNr);
       setIfEmpty('rVerteiler', bk.verteiler);
       setIfEmpty('rRahmen', bk.rahmentermine);
-      setIfEmpty('rRahmenHinweis', bk.rahmenHinweis);
       updateHeaderProj();
       scheduleBerichtskopfSave();
     }
@@ -1084,7 +1026,7 @@ function handlePhoto(e){
       const entry = {
         id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
         bauteil: '', material: '', verantwortlich: '', kuerzel: '',
-        datum: todayStr(), datumISO: nowIso, bearbeitet: false,
+        datum: todayStr(), datumISO: nowIso,
         sortOrder: Date.now(), photoUrl: previewDataUrl, createdAt: Date.now()
       };
       allEntries.push(entry);
@@ -1126,7 +1068,7 @@ function renderRecent(){
       <img src="${e.photoUrl}">
       <div class="meta">
         <div class="t1">${e.type==='veranlassung' ? '<span class="badge rust">Veranlassung</span>' : ''}${escapeHtml(e.gewerk)}</div>
-        <div class="t2">${e.ort ? escapeHtml(e.ort) + ' · ' : ''}${e.datum}</div>
+        <div class="t2">${escapeHtml(e.ort)} · ${e.datum}</div>
       </div>
       <button class="btn-secondary small" onclick="saveToGallery('${e.id}')">Galerie</button>
       <button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">✕</button>
@@ -1155,11 +1097,12 @@ async function saveEntryEdit(id){
   if(!e) return;
   const fields = {
     gewerk: document.getElementById('ed_gewerk_'+id).value.trim(),
-    bauteil: document.getElementById('ed_bauteil_'+id).value.trim(),
+    ort: document.getElementById('ed_ort_'+id).value.trim(),
     arbeiten: document.getElementById('ed_arbeiten_'+id).value.trim(),
+    material: document.getElementById('ed_material_'+id).value.trim(),
+    bauteil: document.getElementById('ed_bauteil_'+id).value.trim(),
     datum: document.getElementById('ed_datum_'+id).value.trim(),
-    kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim(),
-    bearbeitet: true
+    kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim()
   };
   if(e.type === 'veranlassung'){
     const vEl = document.getElementById('ed_verantwortlich_'+id);
@@ -1276,171 +1219,6 @@ function escapeHtml(s){
 function parseSemicolonRows(text){
   return text.split('\n').map(l=>l.trim()).filter(Boolean).map(l => l.split(';').map(p=>p.trim()));
 }
-function rowsToSemicolonText(rows){
-  return rows.map(r => r.join(';')).join('\n');
-}
-
-// --- Verteilerliste: editierbare Tabelle über der bisherigen versteckten
-// rVerteiler-Textarea, damit Format & JSON-Export/Import unverändert bleiben
-// (der Text in #rVerteiler ist weiterhin die "Quelle der Wahrheit").
-function getVerteilerRows(){ return parseSemicolonRows(document.getElementById('rVerteiler').value); }
-function setVerteilerRows(rows){
-  document.getElementById('rVerteiler').value = rowsToSemicolonText(rows);
-  scheduleBerichtskopfSave();
-}
-function renderVerteilerEditor(){
-  const container = document.getElementById('verteilerEditor');
-  if(!container) return;
-  const rows = getVerteilerRows();
-  container.innerHTML = rows.length ? `
-    <table class="editable-table">
-      <tr><th>Name</th><th>Firma</th><th>Kürzel</th><th>E-Mail</th><th></th></tr>
-      ${rows.map((r,i) => {
-        const [name='',firma='',kuerzel='',email=''] = r;
-        return `<tr>
-          <td><input type="text" value="${escapeHtml(name)}" onchange="updateVerteilerCell(${i},0,this.value)" placeholder="Name"></td>
-          <td><input type="text" value="${escapeHtml(firma)}" onchange="updateVerteilerCell(${i},1,this.value)" placeholder="Firma"></td>
-          <td><input type="text" value="${escapeHtml(kuerzel)}" onchange="updateVerteilerCell(${i},2,this.value)" placeholder="Kürzel"></td>
-          <td><input type="text" value="${escapeHtml(email)}" onchange="updateVerteilerCell(${i},3,this.value)" placeholder="E-Mail"></td>
-          <td><button type="button" class="del-btn" onclick="removeVerteilerRow(${i})" title="Zeile löschen">✕</button></td>
-        </tr>`;
-      }).join('')}
-    </table>
-  ` : '<div class="empty">Noch keine Empfänger — mit „+ Empfänger hinzufügen" beginnen.</div>';
-}
-function updateVerteilerCell(i, colIdx, val){
-  const rows = getVerteilerRows();
-  if(!rows[i]) return;
-  rows[i][colIdx] = val;
-  setVerteilerRows(rows);
-}
-function addVerteilerRow(){
-  const rows = getVerteilerRows();
-  rows.push(['','','','']);
-  setVerteilerRows(rows);
-  renderVerteilerEditor();
-}
-function removeVerteilerRow(i){
-  const rows = getVerteilerRows();
-  rows.splice(i,1);
-  setVerteilerRows(rows);
-  renderVerteilerEditor();
-}
-
-// --- Rahmentermine: zwei Ansichten auf dieselben Zeilen (weiterhin in der
-// versteckten rRahmen-Textarea gespeichert). Zeilenformat (8 Felder):
-// [Haus, Gewerk, TP von, TP bis, Bautenstand, Prozent, Status, Prognose zum TP]
-// "Setup" bearbeitet Haus/Gewerk/TP von/TP bis (einmalig pro Projekt),
-// "Status" bearbeitet nur noch Bautenstand/Prozent/Pünktlichkeit/Prognose
-// (bei jedem Bericht neu).
-const RAHMEN_ROW_LEN = 8;
-const BAUTENSTAND_OPTIONS = [
-  ['nicht-begonnen','Nicht begonnen'],
-  ['in-bearbeitung','In Bearbeitung'],
-  ['fertiggestellt','Fertiggestellt']
-];
-const RAHMEN_STATUS_OPTIONS = [
-  ['im-termin','🟩 Termin unkritisch'],
-  ['plus2','🟧 Termin kritisch'],
-  ['plus4','🟥 Termin überschritten']
-];
-// Für Fälle, in denen bereits ein Wert gespeichert ist, der nicht (mehr) zu
-// den festen Auswahloptionen passt (z. B. alte Freitext-Daten) - Auswahl
-// bekommt dann zusätzlich diesen Wert als eigene Option, damit nichts
-// stillschweigend überschrieben wird.
-function optionsWithFallback(options, currentVal){
-  if(!currentVal || options.some(([val]) => val === currentVal)) return options;
-  return [...options, [currentVal, currentVal]];
-}
-function bautenstandLabel(code){
-  const found = BAUTENSTAND_OPTIONS.find(([val]) => val === code);
-  return found ? found[1] : (code || '');
-}
-function rahmenStatusLabel(code){
-  const found = RAHMEN_STATUS_OPTIONS.find(([val]) => val === code);
-  return found ? found[1].replace(/^\S+\s/, '') : (code || '');
-}
-function getRahmenRows(){ return parseSemicolonRows(document.getElementById('rRahmen').value); }
-function setRahmenRows(rows){
-  document.getElementById('rRahmen').value = rowsToSemicolonText(rows);
-  scheduleBerichtskopfSave();
-}
-function renderRahmenSetup(){
-  const container = document.getElementById('rahmenSetupEditor');
-  if(!container) return;
-  const rows = getRahmenRows();
-  container.innerHTML = rows.length ? `
-    <table class="editable-table">
-      <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th></th></tr>
-      ${rows.map((r,i) => {
-        const [haus='',gewerk='',tpVon='',tpBis=''] = r;
-        return `<tr>
-          <td><input type="text" value="${escapeHtml(haus)}" onchange="updateRahmenCell(${i},0,this.value)" placeholder="z. B. Haus 1, 2, 3"></td>
-          <td><input type="text" value="${escapeHtml(gewerk)}" onchange="updateRahmenCell(${i},1,this.value)" placeholder="z. B. Rohbau EG"></td>
-          <td><input type="text" value="${escapeHtml(tpVon)}" onchange="updateRahmenCell(${i},2,this.value)" placeholder="TT.MM.JJJJ"></td>
-          <td><input type="text" value="${escapeHtml(tpBis)}" onchange="updateRahmenCell(${i},3,this.value)" placeholder="TT.MM.JJJJ"></td>
-          <td><button type="button" class="del-btn" onclick="removeRahmenRow(${i})" title="Zeile löschen">✕</button></td>
-        </tr>`;
-      }).join('')}
-    </table>
-  ` : '<div class="empty">Noch keine Rahmentermine angelegt.</div>';
-}
-function renderRahmenStatus(){
-  const container = document.getElementById('rahmenStatusEditor');
-  if(!container) return;
-  const rows = getRahmenRows();
-  if(!rows.length){ container.innerHTML = '<div class="empty">Erst oben unter „Rahmentermine festlegen" Zeilen anlegen.</div>'; return; }
-  container.innerHTML = `
-    <table class="editable-table">
-      <tr><th>Haus</th><th>Gewerk</th><th>TP von–bis</th><th>Bautenstand</th><th>%</th><th>Pünktlichkeit</th><th>Prognose zum TP</th></tr>
-      ${rows.map((r,i) => {
-        const [haus='',gewerk='',tpVon='',tpBis='',bautenstand='',prozent='',status='im-termin',prognose=''] = r;
-        return `<tr>
-          <td class="ro-cell">${escapeHtml(haus) || '—'}</td>
-          <td class="ro-cell">${escapeHtml(gewerk) || '—'}</td>
-          <td class="ro-cell">${escapeHtml(tpVon) || '—'}${tpBis ? ' – ' + escapeHtml(tpBis) : ''}</td>
-          <td><select onchange="updateRahmenCell(${i},4,this.value)">
-            ${optionsWithFallback(BAUTENSTAND_OPTIONS, bautenstand).map(([val,label]) => `<option value="${val}" ${bautenstand===val?'selected':''}>${escapeHtml(label)}</option>`).join('')}
-          </select></td>
-          <td><div class="input-suffix"><input type="number" min="0" max="100" step="1" value="${escapeHtml(prozent)}" onchange="updateRahmenCell(${i},5,this.value)"><span>%</span></div></td>
-          <td><select onchange="updateRahmenCell(${i},6,this.value)">
-            ${optionsWithFallback(RAHMEN_STATUS_OPTIONS, status).map(([val,label]) => `<option value="${val}" ${status===val?'selected':''}>${label}</option>`).join('')}
-          </select></td>
-          <td><input type="text" value="${escapeHtml(prognose)}" placeholder="optional" onchange="updateRahmenCell(${i},7,this.value)"></td>
-        </tr>`;
-      }).join('')}
-    </table>
-  `;
-}
-function updateRahmenCell(i, colIdx, val){
-  const rows = getRahmenRows();
-  if(!rows[i]) return;
-  while(rows[i].length < RAHMEN_ROW_LEN) rows[i].push('');
-  if(colIdx === 4 && !val) val = 'nicht-begonnen';
-  if(colIdx === 5 && val !== ''){
-    val = val.replace(/[^0-9]/g,'');
-    if(val !== '') val = String(Math.min(100, Math.max(0, parseInt(val,10))));
-  }
-  if(colIdx === 6 && !val) val = 'im-termin';
-  rows[i][colIdx] = val;
-  setRahmenRows(rows);
-  renderRahmenSetup();
-  renderRahmenStatus();
-}
-function addRahmenRow(){
-  const rows = getRahmenRows();
-  rows.push(['','','','','nicht-begonnen','','im-termin','']);
-  setRahmenRows(rows);
-  renderRahmenSetup();
-  renderRahmenStatus();
-}
-function removeRahmenRow(i){
-  const rows = getRahmenRows();
-  rows.splice(i,1);
-  setRahmenRows(rows);
-  renderRahmenSetup();
-  renderRahmenStatus();
-}
 function isoWeekLabel(dateStr){
   const d = new Date(dateStr);
   const day = (d.getUTCDay() + 6) % 7;
@@ -1453,52 +1231,24 @@ function isoWeekLabel(dateStr){
 function refreshReportViews(){
   renderEditor();
   renderReport();
-  renderVerteilerEditor();
-  renderRahmenSetup();
-  renderRahmenStatus();
-}
-
-// Ob im Editor nur unbearbeitete Feststellungen angezeigt werden - hilfreich,
-// wenn im Büro viele auf der Baustelle nur fotografierte, noch textlose
-// Einträge (aus einem oder mehreren Terminen) der Reihe nach abgearbeitet
-// werden sollen, ohne bereits fertige Einträge dazwischen zu haben.
-let editorShowOnlyOpen = false;
-
-function toggleEditorFilter(){
-  editorShowOnlyOpen = !editorShowOnlyOpen;
-  const btn = document.getElementById('editorFilterBtn');
-  if(btn) btn.textContent = editorShowOnlyOpen ? 'Alle anzeigen' : 'Nur unbearbeitete anzeigen';
-  renderEditor();
 }
 
 function renderEditor(){
   const doku = allEntries.filter(e=>e.type==='doku').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
   const veranl = allEntries.filter(e=>e.type==='veranlassung').slice().sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
-
-  const dokuDone = doku.filter(e=>e.bearbeitet).length;
-  const veranlDone = veranl.filter(e=>e.bearbeitet).length;
-  const dokuHeading = document.getElementById('editorDokuHeading');
-  const veranlHeading = document.getElementById('editorVeranlHeading');
-  if(dokuHeading) dokuHeading.innerHTML = 'Dokumentation ' + (doku.length ? `<span class="edit-count">(${dokuDone} von ${doku.length} bearbeitet)</span>` : '');
-  if(veranlHeading) veranlHeading.innerHTML = 'Veranlassungen ' + (veranl.length ? `<span class="edit-count">(${veranlDone} von ${veranl.length} bearbeitet)</span>` : '');
-
-  const build = (fullList) => {
-    const list = editorShowOnlyOpen ? fullList.filter(e=>!e.bearbeitet) : fullList;
-    if(!list.length) return `<div class="empty">${editorShowOnlyOpen ? 'Keine unbearbeiteten Einträge mehr' : 'Keine Einträge'}</div>`;
-    return list.map((e, idx) => `
+  const build = (list) => list.map((e, idx) => `
     <div class="edit-row" data-id="${e.id}">
       <div class="order-btns">
         <button type="button" class="order-btn" onclick="moveEntry('${e.id}','up')" ${idx===0 ? 'disabled' : ''} title="Nach oben verschieben">▲</button>
         <button type="button" class="order-btn" onclick="moveEntry('${e.id}','down')" ${idx===list.length-1 ? 'disabled' : ''} title="Nach unten verschieben">▼</button>
       </div>
-      <div class="edit-thumb"><img src="${e.photoUrl}" onclick="openLightboxById('${e.id}')" title="Zum Vergrößern klicken"></div>
+      <div class="edit-thumb"><img src="${e.photoUrl}"></div>
       <div class="edit-fields">
-        <div class="edit-status">${e.bearbeitet ? '<span class="badge green">Gespeichert</span>' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
-        <div class="row2">
-          <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
-          <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
-        </div>
-        <textarea id="ed_arbeiten_${e.id}" placeholder="Info (bei Bedarf inkl. Material)">${escapeHtml(e.arbeiten||'')}</textarea>
+        <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
+        <input type="text" id="ed_ort_${e.id}" value="${escapeHtml(e.ort)}" placeholder="Ort">
+        <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
+        <textarea id="ed_arbeiten_${e.id}" placeholder="Info">${escapeHtml(e.arbeiten||'')}</textarea>
+        <input type="text" id="ed_material_${e.id}" value="${escapeHtml(e.material||'')}" placeholder="Material">
         ${e.type==='veranlassung' ? `<input type="text" id="ed_verantwortlich_${e.id}" value="${escapeHtml(e.verantwortlich||'')}" placeholder="Verantwortlichkeit">` : ''}
         <div class="row2">
           <input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="Datum">
@@ -1511,21 +1261,10 @@ function renderEditor(){
       </div>
     </div>
   `).join('');
-  };
   const dokuContainer = document.getElementById('editorDoku');
   const veranlContainer = document.getElementById('editorVeranl');
-  dokuContainer.innerHTML = build(doku);
-  veranlContainer.innerHTML = build(veranl);
-}
-
-function openLightboxById(id){
-  const e = allEntries.find(x=>x.id===id);
-  if(!e) return;
-  document.getElementById('lightboxImg').src = e.photoUrl;
-  document.getElementById('lightbox').classList.add('active');
-}
-function closeLightbox(){
-  document.getElementById('lightbox').classList.remove('active');
+  dokuContainer.innerHTML = doku.length ? build(doku) : '<div class="empty">Keine Einträge</div>';
+  veranlContainer.innerHTML = veranl.length ? build(veranl) : '<div class="empty">Keine Einträge</div>';
 }
 
 // Reihenfolge per Auf/Ab-Button ändern - statt freiem Ziehen (dabei kam es zu
@@ -1587,23 +1326,22 @@ function renderReport(){
         </td>
       </tr>
     </table>`;
-  const rahmenHinweis = document.getElementById('rRahmenHinweis').value.trim();
   if(rahmenRows.length > 0){
     rahmenBody += `<h3 class="section">Rahmentermine</h3>
-      ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
+      <div class="hinweis">Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)</div>
       <table class="rahmen-table">
-        <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
+        <tr><th>Haus</th><th>Gewerk</th><th>TP vom</th><th>Bautenstand</th><th></th><th>Prognose zum TP</th></tr>
         ${rahmenRows.map(r => {
-          const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='im-termin', prognose=''] = r;
-          return `<tr><td>${escapeHtml(haus)}</td><td>${escapeHtml(gewerk)}</td><td>${escapeHtml(tpVon)}</td><td>${escapeHtml(tpBis)}</td><td>${escapeHtml(bautenstandLabel(bautenstand))}</td><td>${prozent !== '' ? escapeHtml(prozent) + '%' : ''}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td><td>${escapeHtml(prognose)}</td></tr>`;
+          const [name='', termin='', stand='', status='im-termin'] = r;
+          return `<tr><td>${escapeHtml(name)}</td><td></td><td>${escapeHtml(termin)}</td><td>${escapeHtml(stand)}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status)}"></span></td><td></td></tr>`;
         }).join('')}
       </table>`;
   } else {
     rahmenBody += `<h3 class="section">Rahmentermine</h3>
-      ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
+      <div class="hinweis">Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)</div>
       <table class="rahmen-table">
-        <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
-        ${Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
+        <tr><th>Haus</th><th>Gewerk</th><th>TP vom</th><th>Bautenstand</th><th></th><th>Prognose zum TP</th></tr>
+        ${Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
       </table>`;
   }
   toc.push({ title: 'Rahmentermine', page: pageCounter });
@@ -1636,7 +1374,7 @@ function renderReport(){
         <td>${startNr + i}</td>
         <td>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-          ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
+          <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
           ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
           <div class="txt-line">&nbsp;</div>
           <div class="txt-line">Info:</div>
@@ -1665,8 +1403,7 @@ function renderReport(){
         <td>${letter}</td>
         <td>
           <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-          ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
-          ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
+          <div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>
           <div class="txt-line">&nbsp;</div>
           <div class="txt-line">Info:</div>
           ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
