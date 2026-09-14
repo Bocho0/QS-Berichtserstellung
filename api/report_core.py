@@ -8,7 +8,7 @@ import os, copy, base64, re
 import docx
 from docx.shared import Pt, Emu
 from docx.oxml.ns import qn
-from docx.oxml import parse_xml
+from docx.oxml import parse_xml, OxmlElement
 from lxml import etree
 from xml.sax.saxutils import escape as xml_escape
 from PIL import Image
@@ -227,7 +227,7 @@ def set_seitenanzahl_field(doc):
                 return parse_xml(f'<w:r xmlns:w="{W}">{rpr_xml}{inner}</w:r>')
             anchor = non_ul_runs[0]._r
             for rn in [
-                make_run('<w:fldChar w:fldCharType="begin"/>'),
+                make_run('<w:fldChar w:fldCharType="begin" w:dirty="true"/>'),
                 make_run('<w:instrText>NUMPAGES   \\* MERGEFORMAT</w:instrText>'),
                 make_run('<w:fldChar w:fldCharType="separate"/>'),
                 make_run('<w:t>1</w:t>'),
@@ -403,7 +403,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
         toc_text_rpr_xml = f'<w:rPr xmlns:w="{W}"><w:rFonts w:ascii="Barlow" w:hAnsi="Barlow"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
 
         toc_heading = parse_xml(f'''<w:p xmlns:w="{W}">
-          <w:pPr><w:spacing w:before="820" w:after="100"/></w:pPr>
+          <w:pPr><w:spacing w:before="1600" w:after="100"/></w:pPr>
           <w:r>{ref_rpr_xml}<w:t>Inhaltsverzeichnis</w:t></w:r>
         </w:p>''')
         pagebreak_p._p.addprevious(toc_heading)
@@ -684,36 +684,75 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
                 for r in value_p.runs[1:]:
                     r.text = ''
 
-    # Rahmentermine-Tabelle befüllen (bisher wurde dieses Feld gesammelt aber
-    # nie tatsächlich in die Word-Tabelle geschrieben - Format je Zeile:
-    # "Bezeichnung; Terminplan; Bautenstand %; Status"). Die App kennt vier
-    # Status-Werte (im-termin/nicht-kritisch/plus2/plus4), die Word-Vorlage
-    # aber nur drei Ampelfarben - im-termin und nicht-kritisch werden daher
-    # beide auf Grün gemappt.
+    # Rahmentermine-Tabelle befüllen. Zeilenformat je Eintrag (8 Felder, wie
+    # von der App exportiert): "Haus;Gewerk;TP von;TP bis;Bautenstand;
+    # Prozent;Status;Prognose zum TP". Die Vorlagen-Tabelle hat exakt diese
+    # 8 Spalten (Spalte 6 = Ampel-Kästchen ohne Text) UND enthält zwischen
+    # jeder Datenzeile eine bewusst leere Zeile (Zeile 1, 3, 5, ... sind
+    # leer; Zeile 2, 4, 6, ... enthalten die Beispieldaten) - dieses
+    # Zeilenraster muss erhalten bleiben, sonst wirkt die Tabelle
+    # zusammengeschoben bzw. es fehlen scheinbar Leerzeilen.
     if bk.get('rahmentermine', '').strip():
+        BAUTENSTAND_LABELS = {
+            'nicht-begonnen': 'Nicht begonnen',
+            'in-bearbeitung': 'In Bearbeitung',
+            'fertiggestellt': 'Fertiggestellt',
+        }
         RAHMEN_COLOR = {
             'im-termin': 'B2CB7F',
-            'nicht-kritisch': 'B2CB7F',
             'plus2': 'F8A764',
             'plus4': 'F95649',
         }
         rt = doc.tables[2]
         rt_base_run = None
-        for p in rt.rows[0].cells[1].paragraphs:
-            if p.runs:
-                rt_base_run = p.runs[0]
+        for c in rt.rows[0].cells:
+            for p in c.paragraphs:
+                if p.runs:
+                    rt_base_run = p.runs[0]
+                    break
+            if rt_base_run is not None:
                 break
         rows_text = [r.strip() for r in bk['rahmentermine'].split('\n') if r.strip()]
-        for i, row_text in enumerate(rows_text):
-            if i + 1 >= len(rt.rows):
-                break
-            parts = [p.strip() for p in row_text.split(';')]
-            parts += [''] * (4 - len(parts))
-            bezeichnung, terminplan, bautenstand, status = parts[:4]
-            row = rt.rows[i + 1]
-            col_text = {0: bezeichnung, 2: terminplan, 4: bautenstand}
+
+        # Zeilen 2, 4, 6, ... sind die Datenzeilen (direkt nach der
+        # jeweiligen Leerzeile). Reichen die vorhandenen Datenzeilen-Plätze
+        # nicht aus, wird das Muster "Datenzeile + Leerzeile" am Tabellenende
+        # zusätzlich dupliziert, statt einfach weitere Projekte abzuschneiden.
+        data_row_indices = list(range(2, len(rt.rows), 2))
+        missing = len(rows_text) - len(data_row_indices)
+        for _ in range(max(0, missing)):
+            last_tr = rt.rows[-1]._tr
+            data_tr = copy.deepcopy(rt.rows[2]._tr)
+            blank_tr = copy.deepcopy(rt.rows[1]._tr)
+            for tr in (data_tr, blank_tr):
+                for tc in tr.findall(qn('w:tc')):
+                    for p in tc.findall(qn('w:p')):
+                        for run in p.findall(qn('w:r')):
+                            for t_el in run.findall(qn('w:t')):
+                                t_el.text = ''
+            last_tr.addnext(blank_tr)
+            last_tr.addnext(data_tr)
+        data_row_indices = list(range(2, len(rt.rows), 2))
+
+        for pos, row_idx in enumerate(data_row_indices):
+            row = rt.rows[row_idx]
+            if pos < len(rows_text):
+                parts = [p.strip() for p in rows_text[pos].split(';')]
+                parts += [''] * (8 - len(parts))
+                haus, gewerk, tp_von, tp_bis, bautenstand_code, prozent, status, prognose = parts[:8]
+                bautenstand_display = BAUTENSTAND_LABELS.get(bautenstand_code, bautenstand_code)
+                prozent_display = f'{prozent}%' if prozent else ''
+                col_text = {0: haus, 1: gewerk, 2: tp_von, 3: tp_bis, 4: bautenstand_display, 5: prozent_display, 7: prognose}
+                # Kein Status ausgewählt (häufig z. B. bei 0%) -> weißes,
+                # leeres Kästchen statt einer der drei Ampelfarben.
+                fill = RAHMEN_COLOR.get(status.lower(), 'FFFFFF')
+            else:
+                # Übrig gebliebener, ungenutzter Vorlagenplatz - Beispieldaten
+                # der Vorlage vollständig leeren, statt sie stehen zu lassen.
+                col_text = {0: '', 1: '', 2: '', 3: '', 4: '', 5: '', 7: ''}
+                fill = 'FFFFFF'
             for col_idx, val in col_text.items():
-                if not val or col_idx >= len(row.cells):
+                if col_idx >= len(row.cells):
                     continue
                 cell = row.cells[col_idx]
                 for p in cell.paragraphs:
@@ -723,8 +762,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
                 r = target_p.add_run(val)
                 if rt_base_run is not None:
                     set_run_font(r, rt_base_run)
-            fill = RAHMEN_COLOR.get(status.lower())
-            if fill and len(row.cells) > 6:
+            if len(row.cells) > 6:
                 color_cell = row.cells[6]
                 tcPr = color_cell._tc.get_or_add_tcPr()
                 old_shd = tcPr.find(qn('w:shd'))
@@ -797,6 +835,17 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
                         '<w:top w:val="dotted" w:sz="2" w:space="0" w:color="auto"/>'
                         '<w:bottom w:val="dotted" w:sz="2" w:space="0" w:color="auto"/>'
                         '</w:tcBorders>'))
+                    # Zellinhalt vertikal zentrieren - beim Wiederaufbau der
+                    # Zelle (siehe oben) wird die Formatierung der Kopfzeile
+                    # kopiert, die als Beschriftungszeile oben ausgerichtet
+                    # ist; ohne diese explizite Vorgabe stand der Text in den
+                    # Datenzeilen dadurch sichtbar zu weit oben statt mittig.
+                    old_valign = tcPr.find(qn('w:vAlign'))
+                    if old_valign is not None:
+                        tcPr.remove(old_valign)
+                    valign = tcPr.makeelement(qn('w:vAlign'), {})
+                    valign.set(qn('w:val'), 'center')
+                    tcPr.append(valign)
                 row_tr.append(new_tc)
                 cell = [c for c in vt.rows[i + 1].cells if c._tc is new_tc][0]
                 r = cell.paragraphs[0].add_run(val)
@@ -853,23 +902,19 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
         doc.sections[0].different_first_page_header_footer = False
 
     doc.save(out_path)
-    # Word anweisen, Felder (Seitenzahl-Felder etc.) beim Öffnen automatisch
-    # neu zu berechnen, statt den eingebetteten Platzhalterwert stehen zu lassen.
-    import zipfile
-    tmp_fixed = out_path + '.tmp'
-    with zipfile.ZipFile(out_path, 'r') as zin:
-        names = zin.namelist()
-        settings_xml = zin.read('word/settings.xml').decode('utf-8')
-        if '<w:updateFields' not in settings_xml:
-            settings_xml = settings_xml.replace(
-                '<w:settings',
-                '<w:settings', 1)
-            settings_xml = settings_xml.replace(
-                '</w:settings>',
-                '<w:updateFields w:val="true"/></w:settings>', 1)
-        with zipfile.ZipFile(tmp_fixed, 'w', zipfile.ZIP_DEFLATED) as zout:
-            for item in zin.infolist():
-                data_bytes = settings_xml.encode('utf-8') if item.filename == 'word/settings.xml' else zin.read(item.filename)
-                zout.writestr(item, data_bytes)
-    os.replace(tmp_fixed, out_path)
+    # Word anweisen, Felder (Seitenzahl-Feld, PAGEREF-Felder im
+    # Inhaltsverzeichnis) beim Öffnen automatisch neu zu berechnen, statt den
+    # eingebetteten Platzhalterwert stehen zu lassen. Wichtig: das Element
+    # muss über die echte docx-Objektstruktur (nicht per Text-Ersetzung in
+    # der rohen settings.xml) eingefügt werden, und zwar als ERSTES Kind von
+    # <w:settings> - an anderer Position (z. B. direkt vor dem schließenden
+    # Tag, wie zuvor per Zeichenketten-Ersetzung) wird es von Word in der
+    # Praxis teils stillschweigend ignoriert, weil es nicht der von Word
+    # erwarteten Reihenfolge der Einstellungen entspricht.
+    settings_el = doc.settings.element
+    if settings_el.find(qn('w:updateFields')) is None:
+        update_fields_el = OxmlElement('w:updateFields')
+        update_fields_el.set(qn('w:val'), 'true')
+        settings_el.insert(0, update_fields_el)
+    doc.save(out_path)
     return out_path
