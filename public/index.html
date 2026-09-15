@@ -816,9 +816,18 @@ async function splitAndDownloadReport(){
   const dokuCount1 = teil1.filter(e => e.type === 'doku').length;
   const startNr2 = startNr1 + dokuCount1;
 
+  // Seitenzahlen fuer einen "wie aus einem Guss" wirkenden zweiteiligen
+  // Export vorab berechnen (3 Feststellungen pro Seite, wie im Word-
+  // Dokument) - Word kann Felder wie NUMPAGES/PAGE nicht über zwei
+  // getrennte Dateien hinweg summieren/fortzählen, daher hier fest
+  // vorausberechnet und an report_core.py übergeben.
+  const teil1Pages = 2 + Math.ceil(teil1.length / 3); // Deckblatt + Rahmentermine + Dokumentation
+  const teil2Pages = Math.ceil(teil2.length / 3);
+  const combinedTotalPages = teil1Pages + teil2Pages;
+
   try{
     const payload1 = {
-      berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-1-von-2.docx' },
+      berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-1-von-2.docx', dateinameFooter: baseName + '.docx', combinedTotalPages },
       entries: teil1, verlauf: verlaufEntries, startNr: startNr1
     };
     const r1 = await requestAndDownloadWordDoc(payload1);
@@ -835,7 +844,7 @@ async function splitAndDownloadReport(){
     // - nur die Feststellungen/Veranlassungen selbst (die stehen ja schon
     // vollständig in Teil 1).
     pendingTeil2Payload = {
-      berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-2-von-2.docx' },
+      berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-2-von-2.docx', dateinameFooter: baseName + '.docx', combinedTotalPages, pageStart: teil1Pages + 1 },
       entries: teil2, verlauf: verlaufEntries, startNr: startNr2, onlyContent: true
     };
     hint.textContent = 'Teil 1 ("' + r1.filename + '") heruntergeladen. Jetzt Teil 2 herunterladen:';
@@ -1616,7 +1625,7 @@ function renderReport(){
   const berichtsNrPadded = berichtsNr.padStart(3,'0');
   const isoToday = new Date().toISOString().slice(2,10).replace(/-/g,'');
   const autoDateiname = isoToday + '_' + escapeHtml(verfasser) + '-QS-Bautenstand_' + berichtsNrPadded + '.docx';
-  const dateiname = document.getElementById('rDateiname').value.trim() || autoDateiname;
+  const dateiname = (document.getElementById('rDateiname').value.trim() || autoDateiname).replace(/\.docx$/i, '');
 
   const verteilerRows = parseSemicolonRows(document.getElementById('rVerteiler').value);
   const rahmenRows = parseSemicolonRows(document.getElementById('rRahmen').value);
