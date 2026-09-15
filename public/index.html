@@ -685,6 +685,17 @@ async function saveToGalleryBlob(blob, entry){
 
 // Gemeinsame Kern-Logik zum Anfragen + Herunterladen eines Word-Berichts,
 // wiederverwendet von generateWordReport() und splitAndDownloadReport().
+// Die hochaufgelöste "Print"-Fotoversion (nur für PDF-Export/Vorschau) darf
+// NICHT mit an die Word-Erstellung auf dem Server geschickt werden - das
+// würde die ohnehin schon knapp bemessene Vercel-Größengrenze sprengen.
+function stripPrintPhotos(entries){
+  return entries.map(e => {
+    if(!e.photoPrintUrl) return e;
+    const { photoPrintUrl, ...rest } = e;
+    return rest;
+  });
+}
+
 async function requestAndDownloadWordDoc(payload, btn, hint){
   const payloadStr = JSON.stringify(payload);
   const estMB = payloadStr.length / (1024 * 1024);
@@ -743,7 +754,7 @@ async function generateWordReport(){
 
   const payload = {
     berichtskopf: buildBerichtskopfPayload(),
-    entries: allEntries,
+    entries: stripPrintPhotos(allEntries),
     verlauf: verlaufEntries,
     startNr: getStartNr()
   };
@@ -828,7 +839,7 @@ async function splitAndDownloadReport(){
   try{
     const payload1 = {
       berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-1-von-2.docx', dateinameFooter: baseName + '.docx', combinedTotalPages },
-      entries: teil1, verlauf: verlaufEntries, startNr: startNr1
+      entries: stripPrintPhotos(teil1), verlauf: verlaufEntries, startNr: startNr1
     };
     const r1 = await requestAndDownloadWordDoc(payload1);
     if(r1.tooLarge){
@@ -845,7 +856,7 @@ async function splitAndDownloadReport(){
     // vollständig in Teil 1).
     pendingTeil2Payload = {
       berichtskopf: { ...baseBk, dateiname: baseName + '_Teil-2-von-2.docx', dateinameFooter: baseName + '.docx', combinedTotalPages, pageStart: teil1Pages + 1 },
-      entries: teil2, verlauf: verlaufEntries, startNr: startNr2, onlyContent: true
+      entries: stripPrintPhotos(teil2), verlauf: verlaufEntries, startNr: startNr2, onlyContent: true
     };
     hint.textContent = 'Teil 1 ("' + r1.filename + '") heruntergeladen. Jetzt Teil 2 herunterladen:';
     teil2Btn.style.display = 'block';
@@ -1079,8 +1090,9 @@ function handlePhoto(e){
       ctx.fillText(ts, textX, textY);
     }
 
-    // Kleine, komprimierte Version für Bericht/Server (muss unter der
-    // Vercel-Größengrenze bleiben, siehe an anderer Stelle).
+    // Kleine, komprimierte Version für die Word-Erstellung auf dem Server
+    // (muss unter der Vercel-Größengrenze bleiben, siehe requestAndDownload-
+    // WordDoc). Wird außerdem für schnelle Vorschau-Thumbnails verwendet.
     const maxDim = 1000;
     let w = fullW, h = fullH;
     if (w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
@@ -1091,6 +1103,21 @@ function handlePhoto(e){
     smallCtx.drawImage(oriented, 0, 0, w, h);
     drawTimestamp(smallCtx, w, h);
     const previewDataUrl = smallCanvas.toDataURL('image/jpeg', 0.65);
+
+    // Zusätzliche, deutlich höher aufgelöste Version NUR für den PDF-Export
+    // und die Berichtsvorschau (kein Vercel-Größenlimit dort, da PDF
+    // vollständig im Browser erzeugt wird) - verhindert verpixelte Fotos im
+    // PDF, ohne die Word-Erstellung mit großen Dateien zu belasten.
+    const printMaxDim = 1800;
+    let pw = fullW, ph = fullH;
+    if (pw > ph && pw > printMaxDim){ ph = Math.round(ph * printMaxDim / pw); pw = printMaxDim; }
+    else if (ph >= pw && ph > printMaxDim){ pw = Math.round(pw * printMaxDim / ph); ph = printMaxDim; }
+    const printCanvas = document.createElement('canvas');
+    printCanvas.width = pw; printCanvas.height = ph;
+    const printCtx = printCanvas.getContext('2d');
+    printCtx.drawImage(oriented, 0, 0, pw, ph);
+    drawTimestamp(printCtx, pw, ph);
+    const printDataUrl = printCanvas.toDataURL('image/jpeg', 0.88);
 
     // Vollformat-Version in Original-Auflösung für die Fotogalerie (nicht
     // Teil des Berichts/JSON - nur fürs eigene Archiv auf dem Gerät).
@@ -1109,7 +1136,7 @@ function handlePhoto(e){
         id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
         bauteil: '', material: '', verantwortlich: '',
         datum: todayStr(), datumISO: nowIso, bearbeitet: false,
-        sortOrder: Date.now(), photoUrl: previewDataUrl, createdAt: Date.now()
+        sortOrder: Date.now(), photoUrl: previewDataUrl, photoPrintUrl: printDataUrl, createdAt: Date.now()
       };
       allEntries.push(entry);
       renderRecent();
@@ -1599,7 +1626,7 @@ function entryRow(nrLabel, e, showVerantwortlich){
   return `<tr>
     <td>${escapeHtml(String(nrLabel))}</td>
     <td class="entry-text">${entryTextBlock(e, showVerantwortlich)}</td>
-    <td class="entry-photo"><img src="${e.photoUrl}"></td>
+    <td class="entry-photo"><img src="${e.photoPrintUrl || e.photoUrl}"></td>
   </tr>`;
 }
 
@@ -1799,8 +1826,8 @@ async function exportPdf(){
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
     for(let i=0; i<pageNodes.length; i++){
-      const canvas = await html2canvas(pageNodes[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const canvas = await html2canvas(pageNodes[i], { scale: 2.5, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       if(i > 0) pdf.addPage();
       pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
     }
