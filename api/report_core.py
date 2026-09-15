@@ -4,9 +4,9 @@ CLI-Skript (build_report.py) als auch von der Vercel-Serverfunktion
 (api/generate.py) verwendet, damit es nur EINE gepflegte Quelle für die
 Formatierungslogik gibt.
 """
-import os, copy, base64, re
+import os, copy, base64, re, math
 import docx
-from docx.shared import Pt, Emu
+from docx.shared import Pt, Emu, Twips
 from docx.oxml.ns import qn
 from docx.oxml import parse_xml, OxmlElement
 from lxml import etree
@@ -84,6 +84,18 @@ def format_datum(raw):
         d, mo, y = m.groups()
         return f"{int(d):02d}.{int(mo):02d}.{y}"
     return raw
+
+
+def format_temp(raw):
+    """Haengt ein Grad-Celsius-Symbol an, falls der Nutzer nur die Zahl
+    eingegeben hat (z. B. '16,0' -> '16,0°C'); ist bereits ein Grad-/C-
+    Zeichen vorhanden, wird der Wert unveraendert uebernommen."""
+    raw = (raw or '').strip()
+    if not raw:
+        return raw
+    if '°' in raw or raw.lower().endswith('c'):
+        return raw
+    return raw + '°C'
 
 
 WEEKDAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -197,11 +209,14 @@ def replace_value_after_label(doc, label_start, new_value):
     return False
 
 
-def set_seitenanzahl_field(doc):
+def set_seitenanzahl_field(doc, literal_total=None):
     """Setzt statt einer festen Zahl ein echtes Word-Feld (NUMPAGES) ein,
     damit die Seitenanzahl auch nach spaeteren Bearbeitungen in Word
     automatisch stimmt - kein Renderer/LibreOffice zur Vorab-Berechnung
-    noetig (wichtig fuer die serverlose Umgebung ohne LibreOffice)."""
+    noetig (wichtig fuer die serverlose Umgebung ohne LibreOffice).
+    Bei literal_total (zweiteiliger Export) wird stattdessen die vorab
+    berechnete Gesamtseitenzahl BEIDER Teile fest eingetragen, da ein
+    NUMPAGES-Feld nur die Seiten dieser einen Teildatei zaehlen wuerde."""
     for p in doc.paragraphs:
         if p.text.startswith('Seitenanzahl:'):
             non_ul_runs = [r for r in p.runs if not r.font.underline]
@@ -226,6 +241,14 @@ def set_seitenanzahl_field(doc):
             def make_run(inner):
                 return parse_xml(f'<w:r xmlns:w="{W}">{rpr_xml}{inner}</w:r>')
             anchor = non_ul_runs[0]._r
+            if literal_total:
+                for rn in [
+                    make_run(f'<w:t>{int(literal_total)}</w:t>'),
+                    make_run('<w:t xml:space="preserve"> Seiten</w:t>'),
+                ]:
+                    anchor.addnext(rn)
+                    anchor = rn
+                return
             for rn in [
                 make_run('<w:fldChar w:fldCharType="begin" w:dirty="true"/>'),
                 make_run('<w:instrText>NUMPAGES   \\* MERGEFORMAT</w:instrText>'),
@@ -284,6 +307,23 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
         start_nr = 1
 
     doc = docx.Document(template_path)
+
+    # Seitenränder symmetrisch machen: die Vorlage hatte einen deutlich
+    # größeren linken als rechten Rand (1134 vs. 567 dxa), wodurch der
+    # gesamte Inhalt (inkl. der Nr./Feststellung/Foto-Tabelle) sichtbar nach
+    # rechts verschoben wirkte. Beide Seiten werden hier auf denselben Wert
+    # gesetzt, wobei die Summe (und damit die bisher schon fein kalibrierte
+    # nutzbare Breite) bewusst nahezu unverändert bleibt.
+    for sec in doc.sections:
+        total = sec.left_margin.twips + sec.right_margin.twips
+        half = Twips(total // 2)
+        sec.left_margin = half
+        sec.right_margin = half
+    for tbl in doc.tables:
+        tblPr = tbl._tbl.tblPr
+        ind = tblPr.find(qn('w:tblInd'))
+        if ind is not None:
+            ind.set(qn('w:w'), '0')
 
     # Referenz auf die Dokumentationstabelle SOFORT einfangen, bevor weiter
     # unten neue Tabellen/Absätze (Inhaltsverzeichnis, Verlauf) in den
@@ -433,20 +473,19 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
         pagebreak_p._p.addprevious(make_toc_line('Rahmentermine', 'bm_rahmentermine'))
         pagebreak_p._p.addprevious(make_toc_line('Dokumentation', 'bm_dokumentation'))
 
-        # Etwas Abstand zur abschließenden Trennlinie der Titelseite
-        # ergänzen, damit das Inhaltsverzeichnis die Seite bündiger
-        # abschließt. Die Trennlinie selbst lag bisher in einer FIXEN
-        # Fußzeile (immer am selben Abstand von der Seitenunterkante,
-        # unabhängig vom Textinhalt) - das hieß, sie konnte NIE "bündig"
-        # zum tatsächlichen Inhalt stehen, sondern es blieb je nach
-        # Titelblattinhalt eine unterschiedlich große Lücke. Deshalb wird
-        # die Linie hier stattdessen direkt an den Inhalt gehängt (als
-        # Absatzrahmen oben, exakt im selben Stil wie die bisherige
-        # Fußzeilen-Linie), und aus der Fußzeile entfernt, damit nicht zwei
-        # Linien übereinander erscheinen.
+        # Abschließende Trennlinie der Titelseite: unabhängig davon, wie
+        # viel Inhalt (v. a. die variabel lange Verteilerliste) darüber
+        # steht, soll sie IMMER bündig mit der Seitenunterkante abschließen.
+        # Eine bloße "space before"-Lücke (frühere Lösung) hinge weiter vom
+        # Inhalt darüber ab. Stattdessen wird der Absatz per w:framePr
+        # absolut auf der Seite verankert (fester Abstand von der
+        # Seitenoberkante = Seitenhöhe minus unterem Rand) - das ergibt bei
+        # jeder Verteileranzahl exakt dieselbe, bündige Position.
+        avail_dxa_toc = avail_dxa
+        toc_line_y = sec.page_height.twips - sec.bottom_margin.twips
         toc_bottom_spacer = parse_xml(f'''<w:p xmlns:w="{W}">
           <w:pPr>
-            <w:spacing w:before="200"/>
+            <w:framePr w:w="{avail_dxa_toc}" w:h="20" w:hRule="atLeast" w:hAnchor="margin" w:vAnchor="page" w:x="0" w:y="{toc_line_y}" w:wrap="none"/>
             <w:pBdr><w:top w:val="single" w:sz="4" w:space="1" w:color="auto"/></w:pBdr>
           </w:pPr>
         </w:p>''')
@@ -532,10 +571,34 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
     # nur in die rechte Zelle verschoben.
     ftr = doc.sections[0].footer
     sdt = ftr._element.find(f'.//{w("sdt")}')
-    dateiname_val = bk.get('dateiname') or (
+    # In der Fußzeile immer der "normale" Berichtsname (ohne "_Teil-1-von-2"
+    # o. ä.) - beim zweiteiligen Export ist "dateiname" der tatsächliche
+    # Downloadname der jeweiligen Teildatei, "dateinameFooter" (falls
+    # vorhanden) der ungeteilte Name, der beide Teile als zusammengehörigen
+    # Bericht ausweist.
+    dateiname_val = bk.get('dateinameFooter') or bk.get('dateiname') or (
         (bk.get('datum', '').replace('.', '') or 'bericht') + '_' +
         (bk.get('verfasser', '') or 'QS') + '-QS-Bautenstand_' +
         str(bk.get('berichtsNr', '1')).zfill(3) + '.docx')
+    combined_total_pages = bk.get('combinedTotalPages')
+    page_start = bk.get('pageStart')
+    if page_start:
+        # Teil 2 eines geteilten Berichts: Seitenzählung (PAGE-Feld) soll da
+        # weiterzählen, wo Teil 1 aufgehört hat, statt wieder bei 1 zu
+        # beginnen - dafuer den Start der Seitennummerierung im Abschnitt
+        # festlegen. Muss an der von Word erwarteten Position innerhalb von
+        # sectPr stehen (direkt nach w:pgMar).
+        sectPr = doc.sections[0]._sectPr
+        old_pgnum = sectPr.find(qn('w:pgNumType'))
+        if old_pgnum is not None:
+            sectPr.remove(old_pgnum)
+        pgnum_el = OxmlElement('w:pgNumType')
+        pgnum_el.set(qn('w:start'), str(int(page_start)))
+        pgMar = sectPr.find(qn('w:pgMar'))
+        if pgMar is not None:
+            pgMar.addnext(pgnum_el)
+        else:
+            sectPr.append(pgnum_el)
     if sdt is not None:
         sdt_content = sdt.find(qn('w:sdtContent'))
         sdt_paragraphs = sdt_content.findall(qn('w:p')) if sdt_content is not None else []
@@ -545,11 +608,18 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
             def make_run(inner):
                 return parse_xml(f'<w:r xmlns:w="{W}">{rpr_xml}{inner}</w:r>')
             target_p.append(make_run('<w:t xml:space="preserve"> / </w:t>'))
-            target_p.append(make_run('<w:fldChar w:fldCharType="begin"/>'))
-            target_p.append(make_run('<w:instrText>NUMPAGES   \\* MERGEFORMAT</w:instrText>'))
-            target_p.append(make_run('<w:fldChar w:fldCharType="separate"/>'))
-            target_p.append(make_run('<w:t>1</w:t>'))
-            target_p.append(make_run('<w:fldChar w:fldCharType="end"/>'))
+            if combined_total_pages:
+                # Bericht in 2 Teilen: NUMPAGES kaeme nur auf die Seitenzahl
+                # DIESER Teildatei - fuer eine als zusammengehoerig wirkende
+                # Nummerierung wird hier stattdessen die zuvor berechnete
+                # Gesamtseitenzahl beider Teile fest eingetragen.
+                target_p.append(make_run(f'<w:t>{int(combined_total_pages)}</w:t>'))
+            else:
+                target_p.append(make_run('<w:fldChar w:fldCharType="begin"/>'))
+                target_p.append(make_run('<w:instrText>NUMPAGES   \\* MERGEFORMAT</w:instrText>'))
+                target_p.append(make_run('<w:fldChar w:fldCharType="separate"/>'))
+                target_p.append(make_run('<w:t>1</w:t>'))
+                target_p.append(make_run('<w:fldChar w:fldCharType="end"/>'))
             # Die leere erste Zeile innerhalb der Seitenzahl-Steuerelements
             # entfernen, damit die rechte Zelle nachher nur EINE Zeile hoch
             # ist (sonst wuerde die Tabellenzeile hoeher als die linke Zelle
@@ -632,7 +702,7 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
     replace_value_after_label(doc, 'Verfasser:', bk.get('verfasser', ''))
     replace_value_after_label(doc, 'Datum:', bk.get('datum', ''))
     replace_value_after_label(doc, 'Kunde:', bk.get('kunde', ''))
-    set_seitenanzahl_field(doc)
+    set_seitenanzahl_field(doc, literal_total=bk.get('combinedTotalPages'))
     for p in doc.paragraphs:
         if p.text.strip() in ('Mustermannstr. 1', '12345 Hausen'):
             for r in p.runs:
@@ -651,8 +721,8 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
     # nie tatsächlich ins Word-Dokument übernommen.
     wetter_tbl = doc.tables[1]
     datum_mit_wochentag = format_datum_mit_wochentag(bk.get('datum', ''))
-    temp_min = (bk.get('tempMin') or '').strip()
-    temp_max = (bk.get('tempMax') or '').strip()
+    temp_min = format_temp(bk.get('tempMin'))
+    temp_max = format_temp(bk.get('tempMax'))
     for row in wetter_tbl.rows:
         if datum_mit_wochentag and len(row.cells) > 0:
             cell = row.cells[0]
