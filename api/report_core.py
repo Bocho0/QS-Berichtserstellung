@@ -181,14 +181,14 @@ def set_nr_cell(cell, nr, base_run):
     tcPr.append(valign)
     p = cell.paragraphs[0]
     p.paragraph_format.space_before = Pt(16)
-    # Die Kopfzeile "Nr.:" nutzt die Formatvorlage "Listenabsatz", die selbst
-    # einen fest eingebauten Einzug von 720 dxa (0,5") mitbringt (in der
-    # Absatz-XML selbst nicht sichtbar, da nur geerbt). Die Datenzeilen nutzen
-    # dagegen "Normal" mit einem eigenen, davon abweichenden Einzug (360 dxa)
-    # - das erzeugte den Versatz. Hier wird der Einzug der Datenzeile exakt
-    # auf denselben Wert (720 dxa = 36pt) gesetzt, den die Kopfzeile durch
-    # ihre Formatvorlage bereits hat.
-    p.paragraph_format.left_indent = Pt(36)
+    # Frueher wurde hier ein fester Einzug von 720 dxa gesetzt, um die
+    # Datenzeile an einen (vermeintlich) von der Kopfzeile geerbten Einzug
+    # anzugleichen. Seit die Nr.-Spalte schmaler ist (810 statt 1250 dxa,
+    # siehe set_col_width_dxa weiter unten), blieb dafuer kein Platz mehr
+    # uebrig - zweistellige Nummern (14, 15, ...) wurden dadurch im Wort
+    # umgebrochen ("1" / "4" auf zwei Zeilen). Kein Einzug (Absatz bleibt
+    # bei den geerbten Standardwerten) entspricht exakt dem, wie auch die
+    # erste/kopierte Vorlagenzeile ohne Einzug korrekt dargestellt wird.
     r = p.add_run(str(nr))
     set_run_font(r, base_run)
 
@@ -580,6 +580,10 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
         (bk.get('datum', '').replace('.', '') or 'bericht') + '_' +
         (bk.get('verfasser', '') or 'QS') + '-QS-Bautenstand_' +
         str(bk.get('berichtsNr', '1')).zfill(3) + '.docx')
+    # Dateiendung in der Fußzeile weglassen: der Bericht existiert nun
+    # gleichwertig als .docx und als .pdf, eine feste ".docx"-Endung im
+    # Fließtext ist daher nicht mehr zutreffend.
+    dateiname_val = re.sub(r'\.docx$', '', dateiname_val, flags=re.IGNORECASE)
     combined_total_pages = bk.get('combinedTotalPages')
     page_start = bk.get('pageStart')
     if page_start:
@@ -687,9 +691,9 @@ def build(template_path, data, out_path, tmp_dir='/tmp/report_photos', only_cont
 
     # Spaltenbreiten-Korrektur (Nr.-Spalte / Bautenstand-Spalte)
     try:
-        set_col_width_dxa(dokumentation_table, 0, 1250)
-        set_col_width_dxa(dokumentation_table, 1, 4047)
-        set_col_width_dxa(dokumentation_table, 2, 4909)
+        set_col_width_dxa(dokumentation_table, 0, 810)
+        set_col_width_dxa(dokumentation_table, 1, 4250)
+        set_col_width_dxa(dokumentation_table, 2, 5146)
     except Exception:
         pass
     try:
