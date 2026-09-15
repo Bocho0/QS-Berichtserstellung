@@ -6,6 +6,8 @@
 <title>QS-Bautenstand</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --charcoal:#1C1F22;
@@ -151,8 +153,8 @@
   table.verteiler-table th{ border-bottom:1px solid #000; padding:5px 7px; text-align:left; font-family:'Archivo'; font-weight:700; font-size:11px; }
   table.verteiler-table td{ border-bottom:1px dotted #999; padding:5px 7px; text-align:left; vertical-align:top; }
   table.verteiler-table tr.blank-row td{ height:1.4em; color:transparent; }
-  table.rahmen-table td.status-cell{ width:14px; padding:0; }
-  .status-swatch{ width:14px; height:100%; min-height:18px; display:block; border:1px solid var(--line); box-sizing:border-box; }
+  table.rahmen-table td.status-cell{ width:14px; padding:0; text-align:center; }
+  .status-swatch{ width:14px; height:18px; display:inline-block; border:1px solid var(--line); box-sizing:border-box; }
   .status-swatch.im-termin{ background:var(--green); border-color:var(--green); }
   .status-swatch.nicht-kritisch{ background:var(--blue); border-color:var(--blue); }
   .status-swatch.plus2{ background:var(--orange); border-color:var(--orange); }
@@ -173,10 +175,10 @@
   .toc-line{ display:flex; align-items:baseline; gap:6px; font-size:13px; margin-bottom:6px; }
   .toc-line .dots{ flex:1; border-bottom:1px dotted var(--muted); position:relative; top:-3px; }
   h3.section{ font-size:14px; border-bottom:1px solid #000; padding-bottom:6px; margin-bottom:14px; }
-  .day-line{ font-weight:700; padding:14px 7px 6px; border-bottom:1px solid #000; font-size:11.5px; }
   .entry .txt-line{ margin-bottom:2px; }
-  .stand-line{ margin-top:6px; }
-  table.doku-entries{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:4px; }
+  table.doku-entries td.entry-text{ position:relative; padding-bottom:28px; }
+  .stand-line{ position:absolute; left:7px; right:7px; bottom:10px; margin-top:0; }
+  table.doku-entries{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:4px; table-layout:fixed; }
   table.doku-entries th{ border-bottom:1px solid #000; padding:5px 7px; text-align:left; font-family:'Archivo'; font-weight:700; font-size:11px; }
   table.doku-entries td{ border-bottom:1px solid var(--concrete-2); padding:14px 7px; vertical-align:top; }
   table.doku-entries td.entry-photo{ text-align:center; padding-top:4px; }
@@ -187,6 +189,12 @@
   details.help{ margin-top:8px; }
   details.help summary{ font-size:12px; color:var(--muted); cursor:pointer; }
   details.help .ex{ font-size:11px; color:var(--muted); background:var(--concrete); padding:8px; border-radius:var(--radius); margin-top:6px; font-family:monospace; white-space:pre-wrap; }
+  /* Nur fuer den (unsichtbaren) Klon, der fuer den PDF-Export per
+     html2canvas gerastert wird - dort bekommt jede Report-Seite eine feste
+     A4-Größe, damit die Fußzeile zuverlässig am Seitenende sitzt (statt
+     direkt im Anschluss an den Text) und der Export seitengenau ist. */
+  .pdf-capture{ position:fixed; left:-99999px; top:0; width:794px; background:#fff; }
+  .pdf-capture .report-page{ width:794px; height:1123px; box-sizing:border-box; overflow:hidden; margin-bottom:0; border:none; }
   @media print{
     body{ background:white; padding-bottom:0; }
     header.top, nav.tabbar, .no-print{ display:none !important; }
@@ -312,15 +320,18 @@
     </div>
 
     <div class="card no-print">
-      <div class="actionbar">
-        <button class="btn-secondary" onclick="refreshReportViews()">Bericht aktualisieren</button>
-        <button class="btn-secondary" onclick="window.print()">Drucken / Vorschau</button>
-      </div>
-      <button class="btn-primary" onclick="generateWordReport()" id="genWordBtn">Word-Bericht erstellen</button>
-      <div class="hint" id="genWordHint">Erstellt die fertige Word-Datei direkt hier, im exakten Vorlagenformat — kein Chat-Umweg nötig.</div>
+      <button class="btn-primary" onclick="exportPdf()" id="genPdfBtn">PDF exportieren</button>
+      <div class="hint" id="genPdfHint">Erstellt direkt eine PDF-Datei aus der aktuellen Vorschau unten — die Vorschau wird davor automatisch aktualisiert.</div>
 
-      <button class="btn-primary" onclick="exportForWordReport()" id="genJsonBtn">Berichtsdaten herunterladen (.json)</button>
+      <button class="btn-secondary" style="margin-top:10px" onclick="exportForWordReport()" id="genJsonBtn">Berichtsdaten herunterladen (.json)</button>
       <div class="hint">Zum Fortführen dieser Baustelle beim nächsten Termin oder im nächsten Bericht wieder hochladen (Tab „Erfassen" → „Vorherige Sitzung laden") — dient außerdem als Sicherung und lässt sich alternativ im Chat mit Claude zu einem Word-Bericht verarbeiten.</div>
+
+      <details class="help" style="margin-top:14px">
+        <summary>Word-Bericht erstellen (.docx)</summary>
+        <div class="ex">Nur noch für den Fall, dass eine bearbeitbare Word-Datei gebraucht wird — für den normalen Versand reicht die PDF-Datei oben.</div>
+        <button class="btn-secondary small" style="margin-top:8px" onclick="generateWordReport()" id="genWordBtn">Word-Bericht erstellen</button>
+        <div class="hint" id="genWordHint"></div>
+      </details>
 
       <details class="help" style="margin-top:14px">
         <summary>Bericht in 2 Teilen erstellen (bei zu großer Datenmenge)</summary>
@@ -604,7 +615,10 @@ updateHeaderProj();
 function setConnStatus(ok, text){
   const el = document.getElementById('connStatus');
   el.style.display = 'flex';
-  el.className = 'conn-status ' + (ok ? 'ok' : 'bad');
+  // "no-print" muss erhalten bleiben - sonst taucht diese Statusmeldung
+  // (z. B. "X Einträge geladen …") faelschlich im PDF-/Druckexport auf,
+  // sobald sie einmal nach dem Laden aktualisiert wurde.
+  el.className = 'conn-status no-print ' + (ok ? 'ok' : 'bad');
   el.innerHTML = '<span class="dot"></span>' + text;
 }
 setConnStatus(true, 'Bereit — Fotos werden direkt in deine Fotogalerie gespeichert.');
@@ -1084,7 +1098,7 @@ function handlePhoto(e){
       const nowIso = new Date().toISOString().slice(0,10);
       const entry = {
         id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
-        bauteil: '', material: '', verantwortlich: '', kuerzel: '',
+        bauteil: '', material: '', verantwortlich: '',
         datum: todayStr(), datumISO: nowIso, bearbeitet: false,
         sortOrder: Date.now(), photoUrl: previewDataUrl, createdAt: Date.now()
       };
@@ -1159,7 +1173,6 @@ async function saveEntryEdit(id){
     bauteil: document.getElementById('ed_bauteil_'+id).value.trim(),
     arbeiten: document.getElementById('ed_arbeiten_'+id).value.trim(),
     datum: document.getElementById('ed_datum_'+id).value.trim(),
-    kuerzel: document.getElementById('ed_kuerzel_'+id).value.trim(),
     bearbeitet: true
   };
   if(e.type === 'veranlassung'){
@@ -1502,10 +1515,7 @@ function renderEditor(){
         </div>
         <textarea id="ed_arbeiten_${e.id}" placeholder="Info (bei Bedarf inkl. Material)">${escapeHtml(e.arbeiten||'')}</textarea>
         ${e.type==='veranlassung' ? `<input type="text" id="ed_verantwortlich_${e.id}" value="${escapeHtml(e.verantwortlich||'')}" placeholder="Verantwortlichkeit">` : ''}
-        <div class="row2">
-          <input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="Datum">
-          <input type="text" id="ed_kuerzel_${e.id}" value="${escapeHtml(e.kuerzel||'')}" placeholder="Kürzel">
-        </div>
+        <input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="Datum">
         <div class="edit-actions">
           <button class="btn-secondary small" onclick="saveEntryEdit('${e.id}')">Speichern</button>
           <button class="del-btn" onclick="deleteEntry('${e.id}')">Löschen</button>
@@ -1550,6 +1560,48 @@ function moveEntry(id, dir){
   refreshReportViews();
 }
 
+function fmtTemp(raw){
+  raw = (raw||'').trim();
+  if(!raw) return '';
+  if(raw.includes('°') || /c$/i.test(raw)) return raw;
+  return raw + '°C';
+}
+
+const RAHMEN_SWATCH_COLOR = {
+  'im-termin': 'var(--green)',
+  'plus2': 'var(--orange)',
+  'plus4': 'var(--rust)'
+};
+
+function entryTextBlock(e, showVerantwortlich){
+  return `
+      <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
+      ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
+      ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
+      <div class="txt-line">&nbsp;</div>
+      <div class="txt-line">Info:</div>
+      ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
+      ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
+      ${showVerantwortlich ? `<div class="txt-line">Verantwortlichkeit: ${escapeHtml(e.verantwortlich || '—')}</div>` : ''}
+      <div class="stand-line">Stand: ${escapeHtml(e.datum)}</div>`;
+}
+
+function entryRow(nrLabel, e, showVerantwortlich){
+  return `<tr>
+    <td>${escapeHtml(String(nrLabel))}</td>
+    <td class="entry-text">${entryTextBlock(e, showVerantwortlich)}</td>
+    <td class="entry-photo"><img src="${e.photoUrl}"></td>
+  </tr>`;
+}
+
+// In Gruppen zu je 3 aufteilen - genau wie im Word-Dokument passen
+// zuverlässig 3 Feststellungen mit Foto auf eine Seite.
+function chunk3(arr){
+  const out = [];
+  for(let i=0;i<arr.length;i+=3) out.push(arr.slice(i,i+3));
+  return out;
+}
+
 function renderReport(){
   const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}">` : `<div class="logo-placeholder"><div></div><div></div><div></div><div></div></div>`;
 
@@ -1558,8 +1610,8 @@ function renderReport(){
   const kunde = document.getElementById('rKunde').value || '—';
   const verfasser = document.getElementById('rVerfasser').value || '—';
   const datum = document.getElementById('rDatum').value || '—';
-  const tempMin = document.getElementById('rTempMin').value.trim();
-  const tempMax = document.getElementById('rTempMax').value.trim();
+  const tempMin = fmtTemp(document.getElementById('rTempMin').value);
+  const tempMax = fmtTemp(document.getElementById('rTempMax').value);
   const berichtsNr = document.getElementById('rBerichtsNr').value.trim() || '1';
   const berichtsNrPadded = berichtsNr.padStart(3,'0');
   const isoToday = new Date().toISOString().slice(2,10).replace(/-/g,'');
@@ -1590,102 +1642,75 @@ function renderReport(){
       </tr>
     </table>`;
   const rahmenHinweis = document.getElementById('rRahmenHinweis').value.trim();
-  if(rahmenRows.length > 0){
-    rahmenBody += `<h3 class="section">Rahmentermine</h3>
-      ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
-      <table class="rahmen-table">
-        <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
-        ${rahmenRows.map(r => {
-          const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='', prognose=''] = r;
-          return `<tr><td>${escapeHtml(haus)}</td><td>${escapeHtml(gewerk)}</td><td>${escapeHtml(tpVon)}</td><td>${escapeHtml(tpBis)}</td><td>${escapeHtml(bautenstandLabel(bautenstand))}</td><td>${prozent !== '' ? escapeHtml(prozent) + '%' : ''}</td><td class="status-cell"><span class="status-swatch ${escapeHtml(status) || 'leer'}"></span></td><td>${escapeHtml(prognose)}</td></tr>`;
-        }).join('')}
-      </table>`;
-  } else {
-    rahmenBody += `<h3 class="section">Rahmentermine</h3>
-      ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
-      <table class="rahmen-table">
-        <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
-        ${Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
-      </table>`;
+  rahmenBody += `<h3 class="section">Rahmentermine</h3>
+    ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
+    <table class="rahmen-table">
+      <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
+      ${rahmenRows.length > 0 ? rahmenRows.map(r => {
+        const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='', prognose=''] = r;
+        const swatchColor = RAHMEN_SWATCH_COLOR[status] || '#fff';
+        return `<tr><td>${escapeHtml(haus)}</td><td>${escapeHtml(gewerk)}</td><td>${escapeHtml(tpVon)}</td><td>${escapeHtml(tpBis)}</td><td>${escapeHtml(bautenstandLabel(bautenstand))}</td><td>${prozent !== '' ? escapeHtml(prozent) + '%' : ''}</td><td class="status-cell"><span class="status-swatch" style="background:${swatchColor}"></span></td><td>${escapeHtml(prognose)}</td></tr>`;
+      }).join('') : Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
+    </table>`;
+
+  // Verlauf vorheriger Berichte gehört (wie im Word-Dokument) auf die
+  // Rahmentermine-Seite, nicht auf die Dokumentationsseite.
+  if(verlaufEntries.length){
+    rahmenBody += `<h3 class="section" style="margin-top:18px">Verlauf vorheriger Berichte</h3>
+      <table class="doku-index"><tr><th style="width:70px">Nr.</th><th style="width:160px">Zeitraum</th><th>Zusammenfassung</th></tr>`;
+    verlaufEntries.forEach(v => {
+      const range = (v.von === v.bis) ? String(v.von) : `${v.von}–${v.bis}`;
+      const zeitraum = v.zeitraumVon === v.zeitraumBis ? v.zeitraumVon : `${v.zeitraumVon} – ${v.zeitraumBis}`;
+      rahmenBody += `<tr><td>${escapeHtml(range)}</td><td>QS-Bericht ${escapeHtml(String(v.berichtNr).padStart(3,'0'))} vom ${escapeHtml(zeitraum||'')}</td><td>${escapeHtml(v.zusammenfassung||'')}</td></tr>`;
+    });
+    rahmenBody += `</table>`;
   }
+
   toc.push({ title: 'Rahmentermine', page: pageCounter });
   pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: rahmenBody });
   pageCounter++;
 
-  let dokuBody = `<h3 class="section">Dokumentation</h3>`;
-  if(verlaufEntries.length){
-    dokuBody += `<table class="doku-index"><tr><th style="width:70px">Nr.</th><th style="width:160px">Zeitraum</th><th>Zusammenfassung</th></tr>`;
-    verlaufEntries.forEach(v => {
-      const range = (v.von === v.bis) ? String(v.von) : `${v.von}–${v.bis}`;
-      const zeitraum = v.zeitraumVon === v.zeitraumBis ? v.zeitraumVon : `${v.zeitraumVon} – ${v.zeitraumBis}`;
-      dokuBody += `<tr><td>${escapeHtml(range)}</td><td>QS-Bericht ${escapeHtml(String(v.berichtNr).padStart(3,'0'))} vom ${escapeHtml(zeitraum||'')}</td><td>${escapeHtml(v.zusammenfassung||'')}</td></tr>`;
-    });
-    dokuBody += `</table>`;
-  }
   const startNr = getStartNr();
-  if(doku.length===0){
-    dokuBody += `<div class="empty">Keine Dokumentations-Einträge vorhanden.</div>`;
-  }else{
-    dokuBody += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
-    let lastDate = null;
-    doku.forEach((e, i) => {
-      if(e.datum !== lastDate){
-        lastDate = e.datum;
-        dokuBody += `<tr><td colspan="3" class="day-line">${escapeHtml(e.datum)}</td></tr>`;
-      }
-      dokuBody += `
-      <tr>
-        <td>${startNr + i}</td>
-        <td>
-          <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-          ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
-          ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
-          <div class="txt-line">&nbsp;</div>
-          <div class="txt-line">Info:</div>
-          ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
-          ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
-          <div class="stand-line">Stand:${e.datum}${e.kuerzel ? ' · ' + escapeHtml(e.kuerzel) : ''}</div>
-        </td>
-        <td class="entry-photo"><img src="${e.photoUrl}"></td>
-      </tr>`;
+  const dokuGroups = chunk3(doku);
+  if(doku.length === 0){
+    toc.push({ title: 'Dokumentation', page: pageCounter });
+    pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: `<h3 class="section">Dokumentation</h3><div class="empty">Keine Dokumentations-Einträge vorhanden.</div>` });
+    pageCounter++;
+  } else {
+    dokuGroups.forEach((group, gi) => {
+      let body = gi === 0 ? `<h3 class="section">Dokumentation</h3>` : '';
+      body += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
+      group.forEach((e, j) => {
+        const idx = gi*3 + j;
+        body += entryRow(startNr + idx, e, false);
+      });
+      body += `</table>`;
+      if(gi === 0) toc.push({ title: 'Dokumentation', page: pageCounter });
+      pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body });
+      pageCounter++;
     });
-    dokuBody += `</table>`;
   }
-  toc.push({ title: 'Dokumentation', page: pageCounter });
-  pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: dokuBody });
-  pageCounter++;
 
-  let veranlBody = `<h3 class="section">Veranlassungen</h3>`;
-  if(veranl.length===0){
-    veranlBody += `<div class="empty">Keine Veranlassungen vorhanden.</div>`;
-  }else{
-    veranlBody += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
-    veranl.forEach((e, i) => {
-      const letter = String.fromCharCode(65 + i);
-      veranlBody += `
-      <tr>
-        <td>${letter}</td>
-        <td>
-          <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-          ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
-          ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
-          <div class="txt-line">&nbsp;</div>
-          <div class="txt-line">Info:</div>
-          ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
-          ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
-          <div class="txt-line">Verantwortlichkeit: ${escapeHtml(e.verantwortlich || '—')}</div>
-          <div class="stand-line">Stand: ${e.datum}${e.kuerzel ? ' · ' + escapeHtml(e.kuerzel) : ''}</div>
-        </td>
-        <td class="entry-photo"><img src="${e.photoUrl}"></td>
-      </tr>`;
+  const veranlGroups = chunk3(veranl);
+  if(veranl.length === 0){
+    pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: `<h3 class="section">Veranlassungen</h3><div class="empty">Keine Veranlassungen vorhanden.</div>` });
+    pageCounter++;
+  } else {
+    veranlGroups.forEach((group, gi) => {
+      let body = gi === 0 ? `<h3 class="section">Veranlassungen</h3>` : '';
+      body += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
+      group.forEach((e, j) => {
+        const idx = gi*3 + j;
+        const letter = String.fromCharCode(65 + idx);
+        body += entryRow(letter, e, true);
+      });
+      body += `</table>`;
+      pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body });
+      pageCounter++;
     });
-    veranlBody += `</table>`;
   }
-  pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: veranlBody });
-  pageCounter++;
 
   const totalPages = pageCounter - 1;
-  const witterung = (tempMin || tempMax) ? `Min. ${escapeHtml(tempMin||'—')} / Max. ${escapeHtml(tempMax||'—')}` : '';
 
   const coverBody = `
     <div class="cover-title">L E I S T U N G S F E S T E L L U N G&nbsp;&nbsp;-&nbsp;&nbsp;Q U A L I T Ä T S S I C H E R U N G</div>
@@ -1730,6 +1755,56 @@ function renderReport(){
   });
 
   document.getElementById('reportOutput').innerHTML = html;
+}
+
+// Erstellt eine echte PDF-Datei direkt im Browser (kein window.print()) -
+// dadurch tauchen die Browser-eigenen Druck-Kopf-/Fußzeilen (Datum, Titel,
+// URL, Seite x/y) gar nicht erst auf, da der Browser-Druckdialog dabei
+// überhaupt nicht durchlaufen wird. Rastert dafür jede .report-page (in
+// einem unsichtbaren Klon mit fester A4-Größe, siehe .pdf-capture) einzeln
+// und fügt sie als eigene Seite in die PDF-Datei ein.
+async function exportPdf(){
+  const btn = document.getElementById('genPdfBtn');
+  const hint = document.getElementById('genPdfHint');
+  if(allEntries.length === 0){ alert('Noch keine Feststellungen erfasst.'); return; }
+  if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
+    alert('PDF-Bibliothek konnte nicht geladen werden (keine Internetverbindung?). Bitte erneut versuchen.');
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Erstelle PDF …';
+  hint.textContent = '';
+
+  // Vorschau IMMER frisch aufbauen, bevor exportiert wird - "Bericht
+  // aktualisieren" ist dadurch als eigener Schritt überflüssig.
+  refreshReportViews();
+  await new Promise(r => setTimeout(r, 50));
+
+  const clone = document.getElementById('reportOutput').cloneNode(true);
+  const wrap = document.createElement('div');
+  wrap.className = 'pdf-capture';
+  wrap.appendChild(clone);
+  document.body.appendChild(wrap);
+
+  try{
+    const pageNodes = clone.querySelectorAll('.report-page');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    for(let i=0; i<pageNodes.length; i++){
+      const canvas = await html2canvas(pageNodes[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      if(i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    }
+    const filename = (document.getElementById('rDateiname').value.trim() || autoDateinameFromInputs() || 'qs-bericht.docx').replace(/\.docx$/i, '.pdf');
+    pdf.save(filename);
+    hint.textContent = 'Fertig — "' + filename + '" wurde heruntergeladen.';
+  }catch(err){
+    console.error(err);
+    alert('PDF konnte nicht erstellt werden: ' + (err && err.message ? err.message : err));
+  }finally{
+    document.body.removeChild(wrap);
+    btn.disabled = false; btn.textContent = 'PDF exportieren';
+  }
 }
 
 // (kein Ordner-Support-Check mehr noetig - Speicherung laeuft ausschliesslich ueber Galerie + Export/Import)
