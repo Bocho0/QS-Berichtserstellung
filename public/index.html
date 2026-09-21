@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>QS-Bautenstand</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -52,6 +53,7 @@
   .type-toggle button{ flex:1; padding:12px 6px; border-radius:var(--radius); border:1.5px solid var(--line); background:var(--concrete); font-family:'Inter'; font-weight:700; font-size:13px; cursor:pointer; color:var(--muted); }
   .type-toggle button.on[data-type="doku"]{ background:var(--charcoal); color:var(--white); border-color:var(--charcoal); }
   .type-toggle button.on[data-type="veranlassung"]{ background:var(--rust); color:var(--white); border-color:var(--rust); }
+  .type-toggle button.on[data-modus]{ background:var(--charcoal); color:var(--white); border-color:var(--charcoal); }
   label.photo-box{ border:2px dashed var(--line); border-radius:var(--radius); background:var(--concrete); text-align:center; padding:22px 12px; cursor:pointer; position:relative; overflow:hidden; display:block; }
   .photo-box img{ display:block; width:100%; height:280px; object-fit:contain; background:var(--concrete-2); border-radius:2px; }
   .photo-box .cta{ color:var(--muted); font-weight:600; font-size:14px; }
@@ -132,75 +134,210 @@
   .wetter-btn:hover{ background:var(--concrete); }
   .wetter-btn:disabled{ opacity:0.5; cursor:default; }
   .edit-actions{ display:flex; gap:8px; align-items:center; margin-top:2px; }
-  .report-page{ background:var(--white); border:1px solid var(--line); padding:34px 30px 46px; margin-bottom:16px; position:relative; min-height:400px; font-size:12.5px; color:#000; }
-  .rp-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:20px; }
-  .rp-header .titles .t1{ font-family:'Archivo'; font-weight:700; font-size:16px; }
-  .rp-header .titles .t2{ font-size:12px; margin-top:2px; }
-  .rp-header .logo-mark img{ height:32px; }
-  .logo-placeholder{ width:36px; height:36px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:2px; }
-  .logo-placeholder div{ background:#000; }
-  .rp-footer{ position:absolute; left:30px; right:30px; bottom:16px; display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); border-top:1px solid var(--concrete-2); padding-top:6px; }
-  .cover-title{ font-family:'Archivo'; font-weight:800; font-size:16px; letter-spacing:0.1em; margin-bottom:22px; }
-  table.meta-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:20px; }
-  table.meta-table td{ padding:4px 0; vertical-align:top; }
-  table.meta-table td.k{ width:150px; text-decoration:underline; }
-  table.verteiler-table, table.rahmen-table, table.doku-index{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:18px; }
-  table.rahmen-table th, table.rahmen-table td, table.doku-index th, table.doku-index td{ border:1px solid #000; padding:5px 7px; text-align:left; vertical-align:top; }
-  table.rahmen-table th, table.doku-index th{ font-family:'Archivo'; font-weight:700; font-size:11px; }
-  /* Verteiler-Tabelle wie in der Word-Vorlage: nur eine durchgezogene Linie
-     unter dem Header, Datenzeilen durch gepunktete Linien getrennt, keine
-     senkrechten Linien. */
-  table.verteiler-table th{ border-bottom:1px solid #000; padding:5px 7px; text-align:left; font-family:'Archivo'; font-weight:700; font-size:11px; }
-  table.verteiler-table td{ border-bottom:1px dotted #999; padding:5px 7px; text-align:left; vertical-align:top; }
+  /* ============ Berichtsseite = A4 (794 x 1123 px @96dpi) ============ */
+  .report-page{
+    background:#fff; border:1px solid var(--line);
+    width:794px; max-width:100%; box-sizing:border-box;
+    /* 20mm oben / 18mm seitlich / 13mm unten */
+    padding:75.6px 68px 49.1px;
+    margin:0 auto 16px; position:relative;
+    display:flex; flex-direction:column;
+    min-height:1123px;
+    font-family:Barlow,Helvetica,Arial,sans-serif;
+    font-size:12px;      /* 9pt - Fliesstext UND Labels, gleiche Groesse */
+    font-weight:400; line-height:1.38; color:#1C1C1C;
+  }
+
+  /* ---- Kopfzeile ---- */
+  .rp-header{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:38px;
+    border-bottom:1.1px solid #2A2A2A;   /* 0,8pt, schwarz */
+    padding-bottom:8.3px; margin-bottom:0;
+  }
+  .rp-header .titles .t1{
+    font-family:'Agency FB','AgencyFB RegularWid',Barlow,sans-serif;
+    font-size:21.3px;    /* 16pt */
+    font-weight:400; letter-spacing:0.02em; line-height:1.35;
+    white-space:nowrap; color:#000;
+  }
+  .rp-header .titles .t2{
+    font-size:12px; font-weight:300; color:#4A4A4A; line-height:1.3;
+    margin-top:0; white-space:nowrap;
+  }
+  .rp-header .logo-mark{ flex:none; }
+  .rp-header .logo-mark img{ height:37.8px; width:auto; display:block; }  /* 10mm */
+  .logo-placeholder{ display:none; }
+
+  /* ---- Fussleiste: im Fluss am Seitenende, NICHT absolut ---- */
+  .rp-footer{
+    position:static; margin-top:auto;
+    display:flex; justify-content:space-between;
+    border-top:1.1px solid #2A2A2A;      /* schwarz wie Kopfzeile */
+    padding-top:6.8px;
+    font-size:9.3px; color:#8A8A8A;      /* 7pt */
+  }
+
+  /* ---- Deckblatt ---- */
+  .cover-title{
+    font-family:Barlow,sans-serif;
+    font-size:16px; font-weight:600;     /* 12pt fett */
+    letter-spacing:0.26em; text-transform:uppercase; color:#1C1C1C;
+    margin:83.1px 0 0;                   /* 22mm unter der Kopflinie */
+  }
+  table.meta-table{
+    width:100%; border-collapse:collapse; font-size:12px;
+    margin:45.4px 0 0;                   /* 12mm */
+  }
+  table.meta-table td{ padding:1.6px 0; vertical-align:baseline; border:none; }
+  table.meta-table td.k{
+    width:98px;                          /* 26mm */
+    color:#7A7A7A; text-decoration:none; /* KEINE Unterstreichung */
+    padding-right:15px;
+  }
+  table.meta-table tr.gap td{ padding-top:11.3px; }   /* 3mm Gruppenabstand */
+
+  .rp-subhead{                            /* "VERTEILER", "INHALTSVERZEICHNIS" */
+    font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+    color:#6A6A6A; margin:41.6px 0 7.6px;
+  }
+
+  /* ---- Tabellen: NUR waagerechte Linien ---- */
+  table.verteiler-table, table.rahmen-table, table.doku-index, table.doku-entries{
+    width:100%; border-collapse:collapse; font-size:12px; margin:0;
+    table-layout:fixed;
+  }
+  table.verteiler-table th, table.rahmen-table th,
+  table.doku-index th, table.doku-entries th{
+    font-family:Barlow,sans-serif; font-weight:400;
+    font-size:10px;                      /* 7,5pt */
+    letter-spacing:0.06em; color:#6A6A6A;
+    text-align:left; vertical-align:bottom;
+    border:none; border-bottom:1.1px solid #2A2A2A;
+    padding:0 8px 3.8px 0;
+  }
+  table.verteiler-table td, table.rahmen-table td,
+  table.doku-index td, table.doku-entries td{
+    border:none; border-bottom:0.5px solid #DEDEDE;
+    padding:6.4px 8px 6.4px 0;
+    text-align:left; vertical-align:top; color:#1C1C1C;
+  }
+  table.verteiler-table th:last-child, table.rahmen-table th:last-child,
+  table.doku-index th:last-child, table.doku-entries th:last-child,
+  table.verteiler-table td:last-child, table.rahmen-table td:last-child,
+  table.doku-index td:last-child, table.doku-entries td:last-child{ padding-right:0; }
   table.verteiler-table tr.blank-row td{ height:1.4em; color:transparent; }
-  table.rahmen-table td.status-cell{ width:14px; padding:0; text-align:center; }
-  .status-swatch{ width:14px; height:18px; display:inline-block; border:1px solid var(--line); box-sizing:border-box; }
-  .status-swatch.im-termin{ background:var(--green); border-color:var(--green); }
-  .status-swatch.nicht-kritisch{ background:var(--blue); border-color:var(--blue); }
-  .status-swatch.plus2{ background:var(--orange); border-color:var(--orange); }
-  .status-swatch.plus4{ background:var(--rust); border-color:var(--rust); }
-  .status-swatch.leer{ background:var(--white); }
-  .legend{ display:flex; flex-direction:column; gap:4px; font-size:11px; margin-top:10px; }
-  .legend .row{ display:flex; align-items:center; gap:8px; }
-  .legend .sw{ width:16px; height:12px; display:inline-block; }
-  table.wetter-table{ width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px; }
-  table.wetter-table td{ border:1px solid #000; padding:6px 8px; vertical-align:middle; }
-  table.wetter-table td.wd{ width:18%; }
-  table.wetter-table td.wv{ width:14%; }
-  table.wetter-table td.wlegend{ padding:0; }
-  table.wetter-table td.wlegend .row{ display:flex; align-items:center; gap:8px; padding:3px 8px; border-bottom:1px solid #000; }
-  table.wetter-table td.wlegend .row:last-child{ border-bottom:none; }
-  table.wetter-table td.wlegend .sw{ width:16px; height:12px; display:inline-block; flex-shrink:0; }
-  .hinweis{ font-weight:700; margin-bottom:10px; font-size:11.5px; }
-  .toc-line{ display:flex; align-items:baseline; gap:6px; font-size:13px; margin-bottom:6px; }
-  .toc-line .dots{ flex:1; border-bottom:1px dotted var(--muted); position:relative; top:-3px; }
-  h3.section{ font-size:14px; border-bottom:1px solid #000; padding-bottom:6px; margin-bottom:14px; }
-  .entry .txt-line{ margin-bottom:2px; }
-  table.doku-entries td.entry-text{ position:relative; padding-bottom:28px; }
-  .stand-line{ position:absolute; left:7px; right:7px; bottom:10px; margin-top:0; }
-  table.doku-entries{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:4px; table-layout:fixed; }
-  table.doku-entries th{ border-bottom:1px solid #000; padding:5px 7px; text-align:left; font-family:'Archivo'; font-weight:700; font-size:11px; }
-  table.doku-entries td{ border-bottom:1px solid var(--concrete-2); padding:14px 7px; vertical-align:top; }
-  table.doku-entries td.entry-photo{ text-align:center; padding-top:4px; }
-  /* Seitenverhältnis entspricht der Word-Vorlage (Fotohöhe als feste
-     Zielgröße, Breite bis max. 3,35"/2,55" ≈ 1,314) - object-fit:contain
-     bildet dasselbe "in Box einpassen ohne verzerren"-Verhalten nach. */
-  table.doku-entries td.entry-photo img{ width:100%; aspect-ratio:1.314/1; object-fit:contain; background:var(--concrete); border:1px solid var(--line); border-radius:2px; }
-  details.help{ margin-top:8px; }
-  details.help summary{ font-size:12px; color:var(--muted); cursor:pointer; }
-  details.help .ex{ font-size:11px; color:var(--muted); background:var(--concrete); padding:8px; border-radius:var(--radius); margin-top:6px; font-family:monospace; white-space:pre-wrap; }
-  /* Nur fuer den (unsichtbaren) Klon, der fuer den PDF-Export per
-     html2canvas gerastert wird - dort bekommt jede Report-Seite eine feste
-     A4-Größe, damit die Fußzeile zuverlässig am Seitenende sitzt (statt
-     direkt im Anschluss an den Text) und der Export seitengenau ist. */
+
+  /* Verteiler-Spalten: 38 / rest / 16 / 52 mm */
+  table.verteiler-table col.c1{ width:143.6px; }
+  table.verteiler-table col.c3{ width:60.5px; }
+  table.verteiler-table col.c4{ width:196.5px; }
+
+  /* ---- Wetterband ---- */
+  .wetter-band{
+    display:flex; gap:30px; background:#F3F3F1;
+    padding:6px 11.3px; font-size:12px; color:#3A3A3A;
+    margin:26.5px 0 0;                   /* 7mm unter der Kopflinie */
+  }
+  .wetter-band .tag{ font-weight:500; }
+
+  /* ---- Kurzbericht: Dokumentation-Titel + Wetterband in einer Zeile ---- */
+  .doku-head-row{
+    display:flex; align-items:center; justify-content:space-between; gap:30px;
+    height:28.7px;            /* 7,6mm */
+    margin:17px 0 0;          /* 4,5mm */
+  }
+  .doku-head-row h3.section{ margin:0; }
+  .doku-head-row .wetter-band{ margin:0; gap:22.7px; }
+
+  /* ---- Abschnittstitel ---- */
+  h3.section{
+    font-family:Barlow,sans-serif; font-weight:500;
+    font-size:14px;                      /* 10,5pt */
+    color:#1C1C1C; border-bottom:none; padding:0;
+    margin:30.2px 0 0;                   /* 8mm */
+  }
+  .section-note{ font-size:12px; color:#5A5A5A; margin:3px 0 0; }
+  h3.section + table, .section-note + table{ margin-top:15.1px; }
+
+  /* ---- Rahmentermine: 8 Spalten (TP von | TP bis, Prognose frei) ---- */
+  table.rahmen-table col.c-haus{ width:68px; }
+  table.rahmen-table col.c-gewerk{ width:auto; }
+  table.rahmen-table col.c-tpvon{ width:64.3px; }
+  table.rahmen-table col.c-tpbis{ width:64.3px; }
+  table.rahmen-table col.c-stand{ width:114px; }
+  table.rahmen-table col.c-proz{ width:30.2px; }
+  table.rahmen-table col.c-ampel{ width:13.2px; }
+  table.rahmen-table col.c-prognose{ width:60px; }
+  table.rahmen-table td.num{ text-align:right; padding-right:4px; }
+  table.rahmen-table td.status-cell{ width:13.2px; padding:6.4px 0; }
+  .status-swatch{
+    display:block; width:13.2px; height:14px; border:none; box-sizing:border-box;
+  }
+  .status-swatch.im-termin{ background:#8FAF6E; }
+  .status-swatch.plus2{ background:#E0903C; }
+  .status-swatch.plus4{ background:#D9463B; }
+  table.rahmen-table td.muted, table.rahmen-table td.muted *{ color:#7A7A7A; }
+  table.rahmen-table td.haus{ color:#5A5A5A; }
+
+  /* ---- Farblegende ---- */
+  .ampel-legende{
+    display:flex; gap:26.5px; align-items:center;
+    font-size:10.1px; color:#5A5A5A; margin:13.2px 0 0;
+  }
+  .ampel-legende span{ display:flex; align-items:center; gap:6px; }
+  .ampel-legende i{ width:12.1px; height:12.1px; display:block; }
+
+  /* ---- Inhaltsverzeichnis (am unteren Ende des Deckblatts) ---- */
+  .toc-block{ margin-top:auto; }
+  .toc-block + .rp-footer{ margin-top:34px; }   /* 9mm Abstand */
+  .toc-line{
+    display:flex; align-items:baseline; gap:7.6px;
+    font-size:12px; margin:0;
+    border-bottom:0.5px solid #DEDEDE; padding:6.8px 0;
+  }
+  .toc-line .dots{ flex:1; border-bottom:none; top:0; }
+  .toc-line .pg{ color:#7A7A7A; }
+
+  /* ---- Dokumentation: Nr. 9mm | Feststellung | Foto 84mm ---- */
+  table.doku-entries col.c-nr{ width:34px; }
+  table.doku-entries col.c-txt{ width:auto; }
+  table.doku-entries col.c-foto{ width:317.5px; }
+  table.doku-entries td{ padding:11.3px 15.1px 0 0; }
+  table.doku-entries td:last-child{ padding-right:0; }
+  table.doku-entries td.entry-nr{ color:#5A5A5A; }
+  table.doku-entries td.entry-text{
+    padding-bottom:11.3px; position:relative; height:238.1px;
+  }
+  .entry-grid{
+    display:grid; grid-template-columns:56.7px 1fr;   /* Label 15mm */
+    column-gap:5.7px; row-gap:2.3px; align-items:baseline;
+  }
+  .entry-grid .lbl{ color:#8A8A8A; overflow-wrap:break-word; word-break:break-word; hyphens:auto; }
+  .entry-stand{ position:absolute; left:0; bottom:11.3px; color:#8A8A8A; }
+  table.doku-entries td.entry-photo{ padding:11.3px 0 11.3px 0; text-align:left; }
+  table.doku-entries td.entry-photo img{
+    display:block; width:317.5px; height:238.1px;   /* 84 x 63 mm, fest */
+    object-fit:contain; background:#F5F5F3;
+    border:0.5px solid #DCDCD8; border-radius:0;
+    aspect-ratio:auto;
+  }
+
+  /* ---- Export-Klon ---- */
   .pdf-capture{ position:fixed; left:-99999px; top:0; width:794px; background:#fff; }
-  .pdf-capture .report-page{ width:794px; height:1123px; box-sizing:border-box; overflow:hidden; margin-bottom:0; border:none; }
+  .pdf-capture .report-page{
+    width:794px; height:1123px; min-height:1123px;
+    box-sizing:border-box; overflow:hidden; margin:0; border:none;
+  }
   @media print{
     body{ background:white; padding-bottom:0; }
     header.top, nav.tabbar, .no-print{ display:none !important; }
     .container{ max-width:100%; padding:0; }
-    .report-page{ border:none; page-break-after:always; }
+    .report-page{ border:none; page-break-after:always; margin:0; }
   }
+  /* Hilfetext-Boxen der App-Oberfläche (nicht Teil der Berichtsvorschau) */
+  details.help{ margin-top:8px; }
+  details.help summary{ font-size:12px; color:var(--muted); cursor:pointer; }
+  details.help .ex{ font-size:11px; color:var(--muted); background:var(--concrete); padding:8px; border-radius:var(--radius); margin-top:6px; font-family:monospace; white-space:pre-wrap; }
 </style>
 </head>
 <body>
@@ -246,12 +383,12 @@
       <label class="photo-box" for="photoInput">
         <div id="photoPlaceholder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-          <div class="cta">Foto aufnehmen / auswählen<span class="big">wird sofort als Feststellung gespeichert</span></div>
+          <div class="cta">Foto aufnehmen / Fotos auswählen<span class="big">jedes Foto wird sofort als eigene Feststellung gespeichert</span></div>
         </div>
         <img id="photoPreview" style="display:none">
       </label>
-      <input type="file" id="photoInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="handlePhoto(event)">
-      <div class="hint">Foto wird sofort ohne weitere Eingabe als Feststellung gesichert (Gewerk, Ort, Info usw. trägst du später bequem auf der Berichtsseite ein) und zusätzlich in Originalqualität in deine Fotogalerie angeboten.</div>
+      <input type="file" id="photoInput" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="handlePhoto(event)">
+      <div class="hint">Es können auch mehrere Fotos auf einmal ausgewählt werden — jedes Foto wird automatisch als eigene Feststellung angelegt (Gewerk, Ort, Info usw. trägst du später bequem auf der Berichtsseite ein) und zusätzlich in Originalqualität in deine Fotogalerie angeboten.</div>
     </div>
 
     <div class="card">
@@ -263,6 +400,15 @@
 
   <!-- ===================== BERICHT ===================== -->
   <section id="view-report" class="view">
+
+    <div class="card no-print">
+      <h2>Berichtsart</h2>
+      <div class="type-toggle">
+        <button type="button" class="on" data-modus="qs" onclick="setBerichtsModus('qs')">QS-Bericht</button>
+        <button type="button" data-modus="kurz" onclick="setBerichtsModus('kurz')">Baustellen-Kurzbericht</button>
+      </div>
+      <div class="hint" id="modusHint">Vollständiger QS-Bericht mit Verteiler, Rahmenterminen, Verlauf und Inhaltsverzeichnis.</div>
+    </div>
 
     <div class="card no-print">
       <h2>Berichtskopf</h2>
@@ -372,6 +518,24 @@
 <script>
 let allEntries = [];
 let verlaufEntries = [];
+// Berichtsart: 'qs' = vollständiger QS-Bericht (unverändertes Verhalten),
+// 'kurz' = Baustellen-Kurzbericht ohne Verteiler, Rahmentermine, Verlauf und
+// Inhaltsverzeichnis. Beide Modi teilen sich alle Eingabefelder.
+let berichtsModus = 'qs';
+
+function setBerichtsModus(modus){
+  berichtsModus = (modus === 'kurz') ? 'kurz' : 'qs';
+  document.querySelectorAll('.type-toggle button[data-modus]').forEach(b => {
+    b.classList.toggle('on', b.dataset.modus === berichtsModus);
+  });
+  const hint = document.getElementById('modusHint');
+  if(hint) hint.textContent = berichtsModus === 'kurz'
+    ? 'Kurzbericht: nur Deckblatt und Dokumentation. Verteiler, Rahmentermine und Verlauf bleiben gespeichert, werden aber nicht ausgegeben.'
+    : 'Vollständiger QS-Bericht mit Verteiler, Rahmenterminen, Verlauf und Inhaltsverzeichnis.';
+  idbPutMeta('berichtsModus', berichtsModus).catch(()=>{});
+  refreshReportViews();
+}
+
 let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEUAAABFCAMAAAArU9sbAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAGnUExURf////7+/tvb25mZmZGRkY+Pj5ycnOjo6KysrJCQkMvLy/39/ZeXl0REREVFRTk5OcXFxcDAwFFRUUFBQWFhYczMzI6OjkZGRjs7O7u7u8HBwVJSUkJCQmBgYEdHR0lJSUhISF9fX4mJiYyMjIqKiouLi1xcXI2NjXV1dYODgz8/P/n5+cLCwjw8PPj4+IGBgT4+Pjo6OvX19b+/v/v7+4WFhUpKSr29va+vr9XV1e/v79zc3N7e3vPz80NDQ9bW1qmpqZ6enjMzMzIyMra2tqKiorq6uqGhoaioqFNTU05OTvz8/Kenp62trWdnZ66uroKCgoSEhIeHh/f39/b29vDw8H5+fmhoaJ+fnz09Pbm5ucrKypaWljQ0NMfHx0tLS/T09Ly8vDc3N2NjY9PT09HR0eTk5Onp6dnZ2YiIiLCwsPHx8e7u7uzs7MjIyICAgN/f339/f3t7e6SkpJKSksPDw8/Pz7e3t0BAQGpqaqqqqqWlpfLy8ri4uPr6+mVlZZubm5iYmJWVlX19fU1NTV5eXllZWdjY2Orq6uHh4ZqampOTk76+vrsXhk4AAAAJcEhZcwAAFxEAABcRAcom8z8AAANnSURBVFhH3ZjpV1JBFMDvCzD1BWoYICIPASMhFU1xKyst06i0tAVbUCvN1GxfbLOibPujOzODvJnLvIX0Q6efXzhzr78zc99s7wGAYgZQcKsAzdjncBriqtpPJdU4oFPjrFUA1ANujzF19cTScNAkx9t4CED1efzGBJpIh4PNJjmhltq9tYS1csLIguOapkUES7jVFY3Fi39tlFj8sFuweOIJTM2REG/R2tgT5VHak4IllMIZAEc7rCydXWm/v5uz9OAMgGOiJYrjAL19oUwm2b9by0BfPN4+SH7atGRiOC5g0yLrC4ddi6S6HHYtdvoiedJB0RLfaVeGho9zDJ+gycQycpIPME6l5dVNnR5Nc4yd0VdAkg8wvGH5iFJnO/ilFhivYDXq1d2VRe/LuW53EfKfvGWnnYM0y6qbmtCaKZPNGY9oYe08k+fJs5NUNzt4oZpyceJSSLC4iwGOqahXPiKOPrIz6JaQihMA6gPyEemkppHlr+auejldqeXKTA9i9uq1SvsSuX6jCuNoFKtrbfGP5MpIu8X5YsNihG1LzNQyRywNppbWmwDqrQAei07H7SCx3MkHcrm6eewAWBjL5Rbv3gOA+z6XAT5fLLZEkpcdvoQrKtmlHqzEfPGHq7hZQAF9uqqQFWJFlCzp6//J6pqEIcraPBt2Dw5zrNOqP5rekNBF2dh4TFKWfE9wXOfps3UA9XkO7+wco/S0f5E3yalreQmgJkzn7ivysOncNYLNXbvryAh+TaeTZdA1vUDqwiyvcUISnWqRN1ObiGq2e9PVyHbvtzhlc2BF2L0zbUoWoXZOkx1Tt4Te4ZQs9FvePLJ0331PqsssszgDoMHyLvWBngEV3Q4lJwmz6NW1YZGcJOw8mtNHZGmRjai3HVXX0iIbUbEvlVgkfWHndBP5xSySXU08p8MftxyYT40jQnXdn3GGY+uL8Dbh1wrlkNcWbr74cbxQKOTRWxZ+j/N4aDNXF1mKeJcyhLcYYNEXwuJ4qS5GKd6vpf0lks/ICH/b1i04yNDCNe92nnTXdynL670ly8gPHGUsk+u54azjYPNlBjdzGK4jDsO5W8JwHXHYtOxNX/4pi2Tf5bBr2XVfyPeXyApuFgiS7y9eM4uy/dP1y/kbNwsoU06XKyG513HoH5cMsUr5Ax5gj6pG+yeiAAAAAElFTkSuQmCC"; // Standardlogo (Datei-Upload überschreibt dies)
 
 // ===================== LOKALE ZWISCHENSPEICHERUNG (IndexedDB) =====================
@@ -540,6 +704,8 @@ async function idbClearAll(){
 async function restoreFromIdb(){
   const stored = await idbGetAllEntries();
   await restoreBerichtskopfFromIdb();
+  const storedModus = await idbGetMeta('berichtsModus');
+  if(storedModus === 'kurz' || storedModus === 'qs') setBerichtsModus(storedModus);
   renderVerteilerEditor();
   renderRahmenSetup();
   renderRahmenStatus();
@@ -1060,14 +1226,59 @@ function loadOrientedImage(file){
 }
 
 function handlePhoto(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const originalCta = document.getElementById('photoPlaceholder').innerHTML;
-  document.getElementById('photoPlaceholder').innerHTML = '<div class="cta"><span class="big">Foto wird gespeichert …</span></div>';
-  document.getElementById('photoPlaceholder').style.display = 'block';
-  document.getElementById('photoPreview').style.display = 'none';
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  // Input sofort zuruecksetzen, damit dieselbe(n) Datei(en) danach erneut
+  // ausgewaehlt werden koennen (Browser feuert sonst kein change-Event mehr).
+  e.target.value = '';
+  processPhotoFiles(files);
+}
 
-  loadOrientedImage(file).then(function(oriented){
+// Verarbeitet eine Liste ausgewaehlter Fotos NACHEINANDER (nicht parallel,
+// um Speicher/CPU auf schwaecheren Geraeten nicht zu ueberlasten) und legt
+// fuer JEDES Foto eine eigene Feststellung an - so laesst sich z.B. ein
+// ganzer Rundgang mit vielen Fotos auf einmal auswaehlen, statt jedes Foto
+// einzeln nacheinander aufzunehmen.
+async function processPhotoFiles(files){
+  const placeholder = document.getElementById('photoPlaceholder');
+  const preview = document.getElementById('photoPreview');
+  const originalCta = placeholder.innerHTML;
+  const total = files.length;
+  // Ein gemeinsamer Zeitbasis-Wert pro Auswahl, damit alle Fotos dieser
+  // Auswahl in der richtigen Reihenfolge einsortiert werden (sortOrder
+  // bleibt dabei im selben Wertebereich wie Date.now() an anderen Stellen
+  // der App - nur hochgezaehlt statt multipliziert).
+  const batchBase = Date.now();
+  const failed = [];
+
+  placeholder.style.display = 'block';
+  preview.style.display = 'none';
+
+  for(let i = 0; i < total; i++){
+    const label = total > 1 ? `Foto ${i + 1} von ${total} wird gespeichert …` : 'Foto wird gespeichert …';
+    placeholder.innerHTML = `<div class="cta"><span class="big">${escapeHtml(label)}</span></div>`;
+    try{
+      await processSinglePhoto(files[i], batchBase + i);
+    }catch(err){
+      console.error(err);
+      failed.push(files[i].name || `Foto ${i + 1}`);
+    }
+  }
+
+  preview.style.display = 'none';
+  placeholder.style.display = 'block';
+  placeholder.innerHTML = originalCta;
+
+  if(failed.length){
+    alert(`${failed.length} von ${total} Foto(s) konnten nicht verarbeitet werden:\n` + failed.join('\n'));
+  }
+}
+
+// Verarbeitet genau EIN Foto: Ausrichtung korrigieren, Vorschau-/Druck-/
+// Vollversion erzeugen, als neue Feststellung speichern. Gibt ein Promise
+// zurueck, das erst nach vollstaendigem Speichern (inkl. Galerie) aufgeloest wird.
+function processSinglePhoto(file, sortOrder){
+  return loadOrientedImage(file).then(function(oriented){
     const fullW = oriented.width, fullH = oriented.height;
 
     function drawTimestamp(ctx, w, h){
@@ -1104,20 +1315,16 @@ function handlePhoto(e){
     drawTimestamp(smallCtx, w, h);
     const previewDataUrl = smallCanvas.toDataURL('image/jpeg', 0.65);
 
-    // Zusätzliche, deutlich höher aufgelöste Version NUR für den PDF-Export
-    // und die Berichtsvorschau (kein Vercel-Größenlimit dort, da PDF
-    // vollständig im Browser erzeugt wird) - verhindert verpixelte Fotos im
-    // PDF, ohne die Word-Erstellung mit großen Dateien zu belasten.
-    const printMaxDim = 1800;
-    let pw = fullW, ph = fullH;
-    if (pw > ph && pw > printMaxDim){ ph = Math.round(ph * printMaxDim / pw); pw = printMaxDim; }
-    else if (ph >= pw && ph > printMaxDim){ pw = Math.round(pw * printMaxDim / ph); ph = printMaxDim; }
+    // Zusätzliche Version in voller Original-Auflösung NUR für den PDF-
+    // Export und die Berichtsvorschau (kein Vercel-Größenlimit dort, da PDF
+    // vollständig im Browser erzeugt wird) - höchstmögliche Bildqualität,
+    // keine Verkleinerung mehr.
     const printCanvas = document.createElement('canvas');
-    printCanvas.width = pw; printCanvas.height = ph;
+    printCanvas.width = fullW; printCanvas.height = fullH;
     const printCtx = printCanvas.getContext('2d');
-    printCtx.drawImage(oriented, 0, 0, pw, ph);
-    drawTimestamp(printCtx, pw, ph);
-    const printDataUrl = printCanvas.toDataURL('image/jpeg', 0.88);
+    printCtx.drawImage(oriented, 0, 0, fullW, fullH);
+    drawTimestamp(printCtx, fullW, fullH);
+    const printDataUrl = printCanvas.toDataURL('image/jpeg', 0.97);
 
     // Vollformat-Version in Original-Auflösung für die Fotogalerie (nicht
     // Teil des Berichts/JSON - nur fürs eigene Archiv auf dem Gerät).
@@ -1127,36 +1334,33 @@ function handlePhoto(e){
     fullCtx.drawImage(oriented, 0, 0, fullW, fullH);
     drawTimestamp(fullCtx, fullW, fullH);
 
-    fullCanvas.toBlob(function(fullBlob){
-      // Feststellung sofort ohne Text speichern - Gewerk/Ort/Info etc.
-      // werden erst später auf der Berichtsseite eingetragen.
-      const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-      const nowIso = new Date().toISOString().slice(0,10);
-      const entry = {
-        id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
-        bauteil: '', material: '', verantwortlich: '',
-        datum: todayStr(), datumISO: nowIso, bearbeitet: false,
-        sortOrder: Date.now(), photoUrl: previewDataUrl, photoPrintUrl: printDataUrl, createdAt: Date.now()
-      };
-      allEntries.push(entry);
-      renderRecent();
-      idbPutEntry(entry);
+    return new Promise(function(resolve, reject){
+      fullCanvas.toBlob(function(fullBlob){
+        try{
+          // Jedes Foto wird sofort als eigene, eigenständige Feststellung
+          // gespeichert - Gewerk/Ort/Info etc. werden erst später auf der
+          // Berichtsseite eingetragen.
+          const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+          const nowIso = new Date().toISOString().slice(0,10);
+          const entry = {
+            id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
+            bauteil: '', material: '', verantwortlich: '',
+            datum: todayStr(), datumISO: nowIso, bearbeitet: false,
+            sortOrder, photoUrl: previewDataUrl, photoPrintUrl: printDataUrl, createdAt: Date.now()
+          };
+          allEntries.push(entry);
+          renderRecent();
+          idbPutEntry(entry);
 
-      document.getElementById('photoPreview').src = previewDataUrl;
-      document.getElementById('photoPreview').style.display = 'block';
-      document.getElementById('photoPlaceholder').style.display = 'none';
-      setTimeout(() => {
-        document.getElementById('photoPreview').style.display = 'none';
-        document.getElementById('photoPlaceholder').style.display = 'block';
-        document.getElementById('photoPlaceholder').innerHTML = originalCta;
-      }, 900);
+          document.getElementById('photoPreview').src = previewDataUrl;
+          document.getElementById('photoPreview').style.display = 'block';
+          document.getElementById('photoPlaceholder').style.display = 'none';
 
-      if(fullBlob) saveToGalleryBlob(fullBlob, entry);
-    }, 'image/jpeg', 0.92);
-  }).catch(function(err){
-    console.error(err);
-    alert('Foto konnte nicht verarbeitet werden: ' + (err && err.message ? err.message : err));
-    document.getElementById('photoPlaceholder').innerHTML = originalCta;
+          if(fullBlob) saveToGalleryBlob(fullBlob, entry);
+          resolve();
+        }catch(err){ reject(err); }
+      }, 'image/jpeg', 0.92);
+    });
   });
 }
 
@@ -1604,27 +1808,50 @@ function fmtTemp(raw){
 }
 
 const RAHMEN_SWATCH_COLOR = {
-  'im-termin': 'var(--green)',
-  'plus2': 'var(--orange)',
-  'plus4': 'var(--rust)'
+  'im-termin': '#8FAF6E',
+  'plus2': '#E0903C',
+  'plus4': '#D9463B'
 };
 
+// Deutsche Wochentagsabkürzung aus einem Datum im Format dd.mm.yyyy oder
+// dd.mm.yy ableiten (für das Wetterband "Fr, 11.09.2026").
+function weekdayAbbrevDe(datumStr){
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/.exec((datumStr||'').trim());
+  if(!m) return '';
+  let [, d, mo, y] = m;
+  if(y.length === 2) y = '20' + y;
+  const dt = new Date(parseInt(y), parseInt(mo)-1, parseInt(d));
+  if(isNaN(dt.getTime())) return '';
+  return ['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+}
+
+function entryGridRows(e){
+  const rows = [];
+  rows.push(['Gewerk', escapeHtml(e.gewerk)]);
+  rows.push(['Ort', escapeHtml(e.ort || '')]);
+  if(e.bauteil) rows.push(['Bauteil', escapeHtml(e.bauteil)]);
+  if(e.arbeiten){
+    const lines = e.arbeiten.split('\n');
+    lines.forEach((line, i) => rows.push([i===0 ? 'Info' : '', escapeHtml(line)]));
+  }
+  if(e.material) rows.push(['Material', escapeHtml(e.material)]);
+  return rows;
+}
+
 function entryTextBlock(e, showVerantwortlich){
+  const rows = entryGridRows(e);
+  if(showVerantwortlich) rows.push(['Verantwortlichkeit', escapeHtml(e.verantwortlich || '—')]);
+  const gridHtml = rows.map(([lbl, val]) =>
+    `<span class="lbl">${lbl}</span><span>${val}</span>`
+  ).join('');
   return `
-      <div class="txt-line">Gewerk: ${escapeHtml(e.gewerk)}</div>
-      ${e.ort ? `<div class="txt-line">Ort: ${escapeHtml(e.ort)}</div>` : ''}
-      ${e.bauteil ? `<div class="txt-line">Bauteil: ${escapeHtml(e.bauteil)}</div>` : ''}
-      <div class="txt-line">&nbsp;</div>
-      <div class="txt-line">Info:</div>
-      ${e.arbeiten ? e.arbeiten.split('\n').map(line => `<div class="txt-line">${escapeHtml(line)}</div>`).join('') : ''}
-      ${e.material ? `<div class="txt-line">Material: ${escapeHtml(e.material)}</div>` : ''}
-      ${showVerantwortlich ? `<div class="txt-line">Verantwortlichkeit: ${escapeHtml(e.verantwortlich || '—')}</div>` : ''}
-      <div class="stand-line">Stand: ${escapeHtml(e.datum)}</div>`;
+      <div class="entry-grid">${gridHtml}</div>
+      <div class="entry-stand">Stand: ${escapeHtml(e.datum)}</div>`;
 }
 
 function entryRow(nrLabel, e, showVerantwortlich){
   return `<tr>
-    <td>${escapeHtml(String(nrLabel))}</td>
+    <td class="entry-nr">${escapeHtml(String(nrLabel))}</td>
     <td class="entry-text">${entryTextBlock(e, showVerantwortlich)}</td>
     <td class="entry-photo"><img src="${e.photoPrintUrl || e.photoUrl}"></td>
   </tr>`;
@@ -1641,6 +1868,9 @@ function chunk3(arr){
 function renderReport(){
   const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}">` : `<div class="logo-placeholder"><div></div><div></div><div></div><div></div></div>`;
 
+  const kurz = berichtsModus === 'kurz';
+  const subtitle = kurz ? 'Baustellen-Kurzbericht' : 'Leistungsfeststellung – Qualitätssicherung';
+
   const projekt = document.getElementById('rProjekt').value || '—';
   const baustelle = document.getElementById('rBaustelle').value || '—';
   const kunde = document.getElementById('rKunde').value || '—';
@@ -1651,7 +1881,7 @@ function renderReport(){
   const berichtsNr = document.getElementById('rBerichtsNr').value.trim() || '1';
   const berichtsNrPadded = berichtsNr.padStart(3,'0');
   const isoToday = new Date().toISOString().slice(2,10).replace(/-/g,'');
-  const autoDateiname = isoToday + '_' + escapeHtml(verfasser) + '-QS-Bautenstand_' + berichtsNrPadded + '.docx';
+  const autoDateiname = isoToday + '_' + escapeHtml(verfasser) + (kurz ? '-Kurzbericht_' : '-QS-Bautenstand_') + berichtsNrPadded + '.docx';
   const dateiname = (document.getElementById('rDateiname').value.trim() || autoDateiname).replace(/\.docx$/i, '');
 
   const verteilerRows = parseSemicolonRows(document.getElementById('rVerteiler').value);
@@ -1664,84 +1894,100 @@ function renderReport(){
   const toc = [];
   let pageCounter = 2;
 
-  let rahmenBody = `
-    <table class="wetter-table">
-      <tr>
-        <td class="wd">${escapeHtml(datum)}</td>
-        <td class="wv"><b>Min.</b><br>${escapeHtml(tempMin || '—')}</td>
-        <td class="wv"><b>Max.</b><br>${escapeHtml(tempMax || '—')}</td>
-        <td class="wlegend">
-          <div class="row"><span class="sw" style="background:var(--green)"></span>Termin unkritisch</div>
-          <div class="row"><span class="sw" style="background:var(--orange)"></span>Termin kritisch</div>
-          <div class="row"><span class="sw" style="background:var(--rust)"></span>Termin überschritten</div>
-        </td>
-      </tr>
-    </table>`;
-  const rahmenHinweis = document.getElementById('rRahmenHinweis').value.trim();
-  rahmenBody += `<h3 class="section">Rahmentermine</h3>
-    ${rahmenHinweis ? `<div class="hinweis">${escapeHtml(rahmenHinweis)}</div>` : ''}
-    <table class="rahmen-table">
-      <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th>Bautenstand</th><th>%</th><th></th><th>Prognose zum TP</th></tr>
-      ${rahmenRows.length > 0 ? rahmenRows.map(r => {
-        const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='', prognose=''] = r;
-        const swatchColor = RAHMEN_SWATCH_COLOR[status] || '#fff';
-        return `<tr><td>${escapeHtml(haus)}</td><td>${escapeHtml(gewerk)}</td><td>${escapeHtml(tpVon)}</td><td>${escapeHtml(tpBis)}</td><td>${escapeHtml(bautenstandLabel(bautenstand))}</td><td>${prozent !== '' ? escapeHtml(prozent) + '%' : ''}</td><td class="status-cell"><span class="status-swatch" style="background:${swatchColor}"></span></td><td>${escapeHtml(prognose)}</td></tr>`;
-      }).join('') : Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
-    </table>`;
+  // Wetterband-Inhalt einmal gebaut - erscheint je nach Berichtsart entweder
+  // oben auf der Rahmentermine-Seite (QS-Bericht) oder neben der Überschrift
+  // "Dokumentation" auf der ersten Dokumentationsseite (Kurzbericht).
+  const wetterBandHtml = `<div class="wetter-band"><span class="tag">${weekdayAbbrevDe(datum) ? weekdayAbbrevDe(datum) + ', ' : ''}${escapeHtml(datum)}</span><span>Min. ${escapeHtml(tempMin || '—')}</span><span>Max. ${escapeHtml(tempMax || '—')}</span></div>`;
 
-  // Verlauf vorheriger Berichte gehört (wie im Word-Dokument) auf die
-  // Rahmentermine-Seite, nicht auf die Dokumentationsseite.
-  if(verlaufEntries.length){
-    rahmenBody += `<h3 class="section" style="margin-top:18px">Verlauf vorheriger Berichte</h3>
-      <table class="doku-index"><tr><th style="width:70px">Nr.</th><th style="width:160px">Zeitraum</th><th>Zusammenfassung</th></tr>`;
-    verlaufEntries.forEach(v => {
-      const range = (v.von === v.bis) ? String(v.von) : `${v.von}–${v.bis}`;
-      const zeitraum = v.zeitraumVon === v.zeitraumBis ? v.zeitraumVon : `${v.zeitraumVon} – ${v.zeitraumBis}`;
-      rahmenBody += `<tr><td>${escapeHtml(range)}</td><td>QS-Bericht ${escapeHtml(String(v.berichtNr).padStart(3,'0'))} vom ${escapeHtml(zeitraum||'')}</td><td>${escapeHtml(v.zusammenfassung||'')}</td></tr>`;
-    });
-    rahmenBody += `</table>`;
+  if(!kurz){
+    let rahmenBody = wetterBandHtml;
+    const rahmenHinweis = document.getElementById('rRahmenHinweis').value.trim();
+    // TP-Datum fuer den zusammengefassten Tabellenkopf aus dem Hinweistext
+    // ableiten (bestehendes Feld, keine neue Datenquelle) - Konvention: der
+    // Hinweistext beginnt mit "TP vom TT.MM.JJJJ ...".
+    const tpDateMatch = /TP\s+vom\s+(\d{1,2}\.\d{1,2}\.\d{2,4})/i.exec(rahmenHinweis);
+    const tpHeader = tpDateMatch ? `TP vom ${tpDateMatch[1]}` : 'TP von / TP bis';
+    rahmenBody += `<h3 class="section">Rahmentermine</h3>
+      ${rahmenHinweis ? `<div class="section-note">${escapeHtml(rahmenHinweis)}</div>` : ''}
+      <table class="rahmen-table">
+        <colgroup><col class="c-haus"><col class="c-gewerk"><col class="c-tpvon"><col class="c-tpbis"><col class="c-stand"><col class="c-proz"><col class="c-ampel"><col class="c-prognose"></colgroup>
+        <tr><th>Haus</th><th>Gewerk</th><th colspan="2">${escapeHtml(tpHeader)}</th><th colspan="3">Bautenstand</th><th>Prognose</th></tr>
+        ${rahmenRows.length > 0 ? rahmenRows.map(r => {
+          const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='', prognose=''] = r;
+          const swatchColor = RAHMEN_SWATCH_COLOR[status] || '';
+          const muted = !status ? ' muted' : '';
+          return `<tr><td class="haus">${escapeHtml(haus)}</td><td>${escapeHtml(gewerk)}</td><td>${escapeHtml(tpVon)}</td><td>${escapeHtml(tpBis)}</td><td class="${muted.trim()}">${escapeHtml(bautenstandLabel(bautenstand))}</td><td class="num${muted}">${prozent !== '' ? escapeHtml(prozent) : ''}</td><td class="status-cell">${swatchColor ? `<i class="status-swatch" style="background:${swatchColor}"></i>` : ''}</td><td>${escapeHtml(prognose)}</td></tr>`;
+        }).join('') : Array.from({length:12}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
+      </table>
+      <div class="ampel-legende">
+        <span><i style="background:#8FAF6E"></i>Termin unkritisch</span>
+        <span><i style="background:#E0903C"></i>Termin kritisch</span>
+        <span><i style="background:#D9463B"></i>Termin überschritten</span>
+      </div>`;
+
+    // Verlauf vorheriger Berichte gehört (wie im Word-Dokument) auf die
+    // Rahmentermine-Seite, nicht auf die Dokumentationsseite.
+    if(verlaufEntries.length){
+      rahmenBody += `<h3 class="section">Verlauf vorheriger Berichte</h3>
+        <table class="doku-index"><colgroup><col style="width:70px"><col style="width:160px"><col></colgroup><tr><th>Nr.</th><th>Zeitraum</th><th>Zusammenfassung</th></tr>`;
+      verlaufEntries.forEach(v => {
+        const range = (v.von === v.bis) ? String(v.von) : `${v.von}–${v.bis}`;
+        const zeitraum = v.zeitraumVon === v.zeitraumBis ? v.zeitraumVon : `${v.zeitraumVon} – ${v.zeitraumBis}`;
+        rahmenBody += `<tr><td>${escapeHtml(range)}</td><td>QS-Bericht ${escapeHtml(String(v.berichtNr).padStart(3,'0'))} vom ${escapeHtml(zeitraum||'')}</td><td>${escapeHtml(v.zusammenfassung||'')}</td></tr>`;
+      });
+      rahmenBody += `</table>`;
+    }
+
+    toc.push({ title: 'Rahmentermine', page: pageCounter });
+    pages.push({ subtitle, body: rahmenBody });
+    pageCounter++;
   }
 
-  toc.push({ title: 'Rahmentermine', page: pageCounter });
-  pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: rahmenBody });
-  pageCounter++;
+  // Im Kurzbericht entfällt die Rahmentermin-Seite; das Wetterband wandert
+  // in die Kopfzeile der ersten Dokumentationsseite (eine Zeile mit dem
+  // Abschnittstitel, damit der Tabellenkopf auf allen Seiten gleich hoch
+  // beginnt wie im QS-Bericht).
+  const kurzHeadRow = `<div class="doku-head-row"><h3 class="section">Dokumentation</h3>${wetterBandHtml}</div>`;
+  const dokuHead = kurz ? kurzHeadRow : `<h3 class="section">Dokumentation</h3>`;
 
   const startNr = getStartNr();
   const dokuGroups = chunk3(doku);
   if(doku.length === 0){
     toc.push({ title: 'Dokumentation', page: pageCounter });
-    pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: `<h3 class="section">Dokumentation</h3><div class="empty">Keine Dokumentations-Einträge vorhanden.</div>` });
+    pages.push({ subtitle, body: dokuHead + `<div class="empty">Keine Dokumentations-Einträge vorhanden.</div>` });
     pageCounter++;
   } else {
     dokuGroups.forEach((group, gi) => {
-      let body = gi === 0 ? `<h3 class="section">Dokumentation</h3>` : '';
-      body += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
+      let body = gi === 0 ? dokuHead : '';
+      const tblStyle = gi === 0 ? '' : ' style="margin-top:58.9px"';
+      body += `<table class="doku-entries"${tblStyle}><colgroup><col class="c-nr"><col class="c-txt"><col class="c-foto"></colgroup><tr><th>Nr.</th><th>Feststellung</th><th>Foto</th></tr>`;
       group.forEach((e, j) => {
         const idx = gi*3 + j;
         body += entryRow(startNr + idx, e, false);
       });
       body += `</table>`;
       if(gi === 0) toc.push({ title: 'Dokumentation', page: pageCounter });
-      pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body });
+      pages.push({ subtitle, body });
       pageCounter++;
     });
   }
 
   const veranlGroups = chunk3(veranl);
   if(veranl.length === 0){
-    pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body: `<h3 class="section">Veranlassungen</h3><div class="empty">Keine Veranlassungen vorhanden.</div>` });
+    pages.push({ subtitle, body: `<h3 class="section">Veranlassungen</h3><div class="empty">Keine Veranlassungen vorhanden.</div>` });
     pageCounter++;
   } else {
     veranlGroups.forEach((group, gi) => {
       let body = gi === 0 ? `<h3 class="section">Veranlassungen</h3>` : '';
-      body += `<table class="doku-entries"><tr><th style="width:12%">Nr.:</th><th style="width:40%">Feststellung:</th><th style="width:48%">Foto:</th></tr>`;
+      const tblStyle = gi === 0 ? '' : ' style="margin-top:58.9px"';
+      body += `<table class="doku-entries"${tblStyle}><colgroup><col class="c-nr"><col class="c-txt"><col class="c-foto"></colgroup><tr><th>Nr.</th><th>Feststellung</th><th>Foto</th></tr>`;
       group.forEach((e, j) => {
         const idx = gi*3 + j;
         const letter = String.fromCharCode(65 + idx);
         body += entryRow(letter, e, true);
       });
       body += `</table>`;
-      pages.push({ subtitle: 'Leistungsfeststellung - Qualitätssicherung', body });
+      pages.push({ subtitle, body });
       pageCounter++;
     });
   }
@@ -1749,30 +1995,34 @@ function renderReport(){
   const totalPages = pageCounter - 1;
 
   const coverBody = `
-    <div class="cover-title">L E I S T U N G S F E S T E L L U N G&nbsp;&nbsp;-&nbsp;&nbsp;Q U A L I T Ä T S S I C H E R U N G</div>
+    <div class="cover-title">${kurz ? 'Baustellen-Kurzbericht' : 'Leistungsfeststellung – Qualitätssicherung'}</div>
     <table class="meta-table">
-      <tr><td class="k">Thema</td><td>Bericht zur Leistungsfeststellung - Qualitätssicherung</td></tr>
-      <tr><td class="k">Verfasser</td><td>${escapeHtml(verfasser)}</td></tr>
+      <tr><td class="k">Thema</td><td>${kurz ? 'Kurzbericht zum Bautenstand' : 'Bericht zur Leistungsfeststellung – Qualitätssicherung'}</td></tr>
+      <tr class="gap"><td class="k">Verfasser</td><td>${escapeHtml(verfasser)}</td></tr>
       <tr><td class="k">Datum</td><td>${escapeHtml(datum)}</td></tr>
       <tr><td class="k">Seitenanzahl</td><td>${totalPages} Seiten</td></tr>
-      <tr><td class="k">Kunde</td><td>${escapeHtml(kunde)}</td></tr>
+      <tr class="gap"><td class="k">Kunde</td><td>${escapeHtml(kunde)}</td></tr>
     </table>
+    ${kurz ? '' : `<div class="rp-subhead">Verteiler</div>
     <table class="verteiler-table">
+      <colgroup><col class="c1"><col><col class="c3"><col class="c4"></colgroup>
       <tr><th>Name</th><th>Firma</th><th>Kürzel</th><th>E-Mail</th></tr>
       ${verteilerRows.map(r => { const [name='',firma='',kuerzel='',email=''] = r; return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(firma)}</td><td>${escapeHtml(kuerzel)}</td><td>${escapeHtml(email)}</td></tr>`; }).join('')}
       ${Array.from({length: Math.max(0, 12 - verteilerRows.length)}).map(() => `<tr class="blank-row"><td>&nbsp;</td><td></td><td></td><td></td></tr>`).join('')}
     </table>
-    <table class="meta-table" style="margin-top:6px">
+    <table class="meta-table" style="margin-top:11.3px">
       <tr><td class="k">Verteilung</td><td>per Email</td></tr>
       <tr><td class="k">Anlagen</td><td>./.</td></tr>
     </table>
-    <h3 class="section" style="margin-top:22px">Inhaltsverzeichnis</h3>
-    ${toc.map(t => `<div class="toc-line"><span>${escapeHtml(t.title)}</span><span class="dots"></span><span>${t.page}</span></div>`).join('')}
+    <div class="toc-block">
+      <div class="rp-subhead">Inhaltsverzeichnis</div>
+      ${toc.map(t => `<div class="toc-line"><span>${escapeHtml(t.title)}</span><span class="dots"></span><span class="pg">${t.page}</span></div>`).join('')}
+    </div>`}
   `;
 
   let html = `<div class="report-page">
     <div class="rp-header">
-      <div class="titles"><div class="t1">${escapeHtml(projekt)}</div></div>
+      <div class="titles"><div class="t1">${escapeHtml(projekt)}</div><div class="t2">${subtitle}</div></div>
       <div class="logo-mark">${logoHtml}</div>
     </div>
     ${coverBody}
@@ -1822,16 +2072,22 @@ async function exportPdf(){
   document.body.appendChild(wrap);
 
   try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
     const pageNodes = clone.querySelectorAll('.report-page');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
     for(let i=0; i<pageNodes.length; i++){
-      const canvas = await html2canvas(pageNodes[i], { scale: 2.5, useCORS: true, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      // scale:3.13 entspricht bei 794px Seitenbreite (=210mm bei 96dpi)
+      // einer Rasterauflösung von ~300dpi - Standard-Druckqualität für Text
+      // und Linien. Höhere Werte bringen kaum sichtbaren Gewinn, erhöhen
+      // aber Dateigröße und Rechenzeit überproportional.
+      const canvas = await html2canvas(pageNodes[i], { scale: 3.13, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
       if(i > 0) pdf.addPage();
       pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
     }
-    const filename = (document.getElementById('rDateiname').value.trim() || autoDateinameFromInputs() || 'qs-bericht.docx').replace(/\.docx$/i, '.pdf');
+    let filename = (document.getElementById('rDateiname').value.trim() || autoDateinameFromInputs() || 'qs-bericht.docx').replace(/\.docx$/i, '.pdf');
+    if(berichtsModus === 'kurz') filename = filename.replace(/QS-Bericht/i, 'Kurzbericht');
     pdf.save(filename);
     hint.textContent = 'Fertig — "' + filename + '" wurde heruntergeladen.';
   }catch(err){
