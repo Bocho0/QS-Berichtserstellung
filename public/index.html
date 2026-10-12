@@ -95,13 +95,17 @@
   .edit-group h3:first-child{ margin-top:0; }
   .edit-row{ display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--concrete-2); }
   .edit-thumb img{ width:130px; height:130px; object-fit:contain; background:var(--concrete-2); border-radius:3px; border:1px solid var(--line); cursor:zoom-in; }
-  .edit-fields{ flex:1; display:flex; flex-direction:column; gap:6px; }
+  .edit-fields{ flex:1; display:flex; flex-direction:column; gap:10px; }
   .edit-fields input, .edit-fields textarea{ padding:7px 8px; font-size:13px; margin:0; }
   .edit-fields textarea{ min-height:44px; }
+  .edit-fields label{ display:block; font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.02em; margin:0 0 3px; }
+  .edit-fields .field-block{ display:flex; flex-direction:column; }
+  .edit-bottom-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  .edit-datum input{ width:130px; }
   .edit-row{ align-items:flex-start; }
   .badge.orange{ background:var(--orange); color:var(--white); }
   .badge.green{ background:var(--green); color:var(--white); }
-  .edit-status{ margin-bottom:6px; }
+  .edit-status{ margin-bottom:0; }
   .edit-count{ font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:12px; }
   .editor-toolbar{ display:flex; justify-content:flex-end; margin-bottom:4px; }
   .editor-toolbar button{ width:auto; }
@@ -120,16 +124,17 @@
   @media (min-width:860px){
     .container{ max-width:1120px; }
     #view-report .edit-row{ display:grid; grid-template-columns:auto 300px 1fr; gap:18px; align-items:start; padding:18px 0; }
-    #view-report .edit-thumb img{ width:300px; height:300px; }    #view-report .edit-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
-    #view-report .edit-fields textarea{ grid-column:1 / -1; min-height:90px; }
-    #view-report .edit-status, #view-report .edit-actions{ grid-column:1 / -1; }
+    #view-report .edit-thumb img{ width:300px; height:300px; }
+    #view-report .edit-fields{ display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+    #view-report .edit-fields .row2{ grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+    #view-report .edit-fields textarea{ min-height:90px; }
+    #view-report .edit-status, #view-report .edit-fields .field-block, #view-report .edit-bottom-row{ grid-column:1 / -1; }
   }
   .drag-handle{ width:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--muted); cursor:grab; touch-action:none; user-select:none; padding-top:14px; }
   .edit-row.dragging{ opacity:0.85; box-shadow:0 6px 16px rgba(0,0,0,0.18); background:var(--white); position:relative; z-index:5; }
-  .order-btns{ display:flex; flex-direction:column; gap:4px; flex-shrink:0; padding-top:2px; }
-  .order-btn{ width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1; border:1px solid var(--line); border-radius:4px; background:var(--white); color:var(--charcoal); cursor:pointer; touch-action:manipulation; }
-  .order-btn:active{ background:var(--concrete); }
-  .order-btn:disabled{ opacity:0.3; cursor:default; }
+  .edit-row.drag-over{ border-top:2.5px solid var(--accent); }
+  .drag-handle{ display:flex; align-items:center; justify-content:center; width:30px; flex-shrink:0; align-self:stretch; color:var(--muted); cursor:grab; touch-action:none; }
+  .drag-handle:active{ cursor:grabbing; }
   .wetter-btn{ font-size:11px; font-weight:500; background:none; border:1px solid var(--line); border-radius:3px; padding:2px 6px; margin-left:6px; cursor:pointer; color:var(--muted); }
   .wetter-btn:hover{ background:var(--concrete); }
   .wetter-btn:disabled{ opacity:0.5; cursor:default; }
@@ -162,8 +167,11 @@
   }
   .rp-header .titles .t2{
     font-size:12px; font-weight:300; color:#4A4A4A; line-height:1.3;
-    margin-top:0; white-space:nowrap;
+    margin-top:4.5px; white-space:nowrap;
   }
+  /* Deckblatt: Kopfzeile zeigt nur den Projekttitel, die Berichtsart steht
+     bereits als grosse Ueberschrift weiter unten - keine Dopplung. */
+  .rp-header.cover-header .titles .t2{ display:none; }
   .rp-header .logo-mark{ flex:none; }
   .rp-header .logo-mark img{ height:37.8px; width:auto; display:block; }  /* 10mm */
   .logo-placeholder{ display:none; }
@@ -424,15 +432,22 @@
         </div>
         <div><label>Temperatur Min.</label><input type="text" id="rTempMin" placeholder="z. B. 16,0°C"></div>
         <div><label>Temperatur Max.</label><input type="text" id="rTempMax" placeholder="z. B. 22,0°C"></div>
+        <div id="kurzThemaDatumField" style="display:none"><label>Datum der Begehung <span style="font-weight:400;color:var(--muted)">(für „Thema" auf dem Deckblatt und die Dokumentbenennung)</span></label><input type="text" id="rKurzThemaDatum" placeholder="TT.MM.JJJJ"></div>
         <input type="text" id="rDateiname" style="display:none" aria-hidden="true">
       </div>
 
       <textarea class="mono" id="rVerteiler" style="display:none" aria-hidden="true"></textarea>
       <textarea class="mono" id="rRahmen" style="display:none" aria-hidden="true"></textarea>
 
+      <div id="teilnehmerBlock" style="display:none">
+        <label style="margin-top:14px">Teilnehmer <span style="font-weight:400;color:var(--muted)">(ein Name je Zeile, z. B. „Herr Forster, IMP")</span></label>
+        <textarea id="rTeilnehmer" rows="4" placeholder="Herr Forster, IMP&#10;Herr Lingenfelser, GAPP"></textarea>
+      </div>
+
+      <div id="rahmenVerteilerBlock">
       <details class="help" style="margin-top:14px" open>
         <summary>Rahmentermine festlegen (einmalig pro Projekt)</summary>
-        <div class="ex" style="font-family:inherit;white-space:normal">Hier einmal zu Projektbeginn Haus, Gewerk und die Ausführung nach TP (von/bis) je Zeile anlegen. Bei jedem weiteren Bericht müssen dann nur noch Bautenstand, Prozent, Pünktlichkeit und ggf. Prognose unten aktualisiert werden — die Liste selbst bleibt gleich.</div>
+        <div class="ex" style="font-family:inherit;white-space:normal">Hier einmal zu Projektbeginn Bereich, Gewerk und die Ausführung nach TP (von/bis) je Zeile anlegen. Bei jedem weiteren Bericht müssen dann nur noch Bautenstand, Prozent, Pünktlichkeit und ggf. Prognose unten aktualisiert werden — die Liste selbst bleibt gleich.</div>
         <label style="margin-top:12px">Hinweistext über der Tabelle <span style="font-weight:400;color:var(--muted)">(projektspezifisch, erscheint im Bericht — z. B. auf welchen Terminplan sich „TP vom" bezieht)</span></label>
         <input type="text" id="rRahmenHinweis" placeholder="z. B. Hinweis: TP vom 14.04.2026 ist der optimierte Detailterminplan (Best-Case-Szenario)">
         <div id="rahmenSetupEditor" style="margin-top:10px"></div>
@@ -447,6 +462,7 @@
         <div id="verteilerEditor" style="margin-top:10px"></div>
         <button type="button" class="btn-secondary small" style="margin-top:8px" onclick="addVerteilerRow()">+ Empfänger hinzufügen</button>
       </details>
+      </div>
 
       <label>Verlauf vorheriger Berichte <span style="font-weight:400;color:var(--muted)">(Kurzdarstellung, wird automatisch beim Fortführen einer Berichtsreihe ergänzt)</span></label>
       <div id="verlaufList"><div class="empty">Noch kein Verlauf — entsteht automatisch, wenn eine JSON-Datei zum Fortführen der Berichtsreihe hochgeladen wird.</div></div>
@@ -530,8 +546,14 @@ function setBerichtsModus(modus){
   });
   const hint = document.getElementById('modusHint');
   if(hint) hint.textContent = berichtsModus === 'kurz'
-    ? 'Kurzbericht: nur Deckblatt und Dokumentation. Verteiler, Rahmentermine und Verlauf bleiben gespeichert, werden aber nicht ausgegeben.'
+    ? 'Kurzbericht: nur Deckblatt und Dokumentation. Statt Verteiler werden Teilnehmer der Begehung erfasst. Rahmentermine bleiben gespeichert, werden aber nicht abgefragt und nicht ausgegeben.'
     : 'Vollständiger QS-Bericht mit Verteiler, Rahmenterminen, Verlauf und Inhaltsverzeichnis.';
+  const rahmenVerteilerBlock = document.getElementById('rahmenVerteilerBlock');
+  if(rahmenVerteilerBlock) rahmenVerteilerBlock.style.display = berichtsModus === 'kurz' ? 'none' : '';
+  const teilnehmerBlock = document.getElementById('teilnehmerBlock');
+  if(teilnehmerBlock) teilnehmerBlock.style.display = berichtsModus === 'kurz' ? '' : 'none';
+  const kurzThemaDatumField = document.getElementById('kurzThemaDatumField');
+  if(kurzThemaDatumField) kurzThemaDatumField.style.display = berichtsModus === 'kurz' ? '' : 'none';
   idbPutMeta('berichtsModus', berichtsModus).catch(()=>{});
   refreshReportViews();
 }
@@ -615,7 +637,7 @@ async function idbClearEntries(){
 // --- Berichtskopf (Deckblatt-Felder + Rahmentermine) genauso zwischenspeichern
 // wie die Feststellungen, damit ein Neuladen/Schließen des Tablets auch diese
 // Angaben nicht verwirft.
-const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen','rRahmenHinweis'];
+const BERICHTSKOPF_FIELD_IDS = ['rProjekt','rBaustelle','rKunde','rVerfasser','rDatum','rBerichtsNr','rTempMin','rTempMax','rVerteiler','rRahmen','rRahmenHinweis','rTeilnehmer','rKurzThemaDatum'];
 
 async function idbPutMeta(key, value){
   try{
@@ -765,12 +787,23 @@ function guessKuerzel(){
 // Verlassen eines Feldes gespeichert), damit er auch dann stimmt, wenn sich
 // Datum/Projekt/Nr. zwischenzeitlich geändert haben.
 function autoDateinameFromInputs(){
-  const iso = parseGermanDateToISO(document.getElementById('rDatum').value);
   const kuerzel = guessKuerzel();
-  const nr = document.getElementById('rBerichtsNr').value.trim();
-  if(!iso || !kuerzel) return '';
-  const jj = iso.slice(2,4), mm = iso.slice(5,7), tt = iso.slice(8,10);
+  if(!kuerzel) return '';
   const kuerzelClean = kuerzel.replace(/[^A-Za-z0-9äöüÄÖÜß-]+/g,'');
+  if(berichtsModus === 'kurz'){
+    // Kurzbericht: Berichtsnummer entfaellt, stattdessen das Datum der
+    // Begehung aus dem eigenen Eingabefeld - "JJMMTT_Kurzbericht-
+    // Baustellenbegehung-Kürzel", z. B. "260910_Kurzbericht-Baustellenbegehung-CHA.docx".
+    const kurzEl = document.getElementById('rKurzThemaDatum');
+    const iso = parseGermanDateToISO(kurzEl ? kurzEl.value : '');
+    if(!iso) return '';
+    const jj = iso.slice(2,4), mm = iso.slice(5,7), tt = iso.slice(8,10);
+    return `${jj}${mm}${tt}_Kurzbericht-Baustellenbegehung-${kuerzelClean}.docx`;
+  }
+  const iso = parseGermanDateToISO(document.getElementById('rDatum').value);
+  const nr = document.getElementById('rBerichtsNr').value.trim();
+  if(!iso) return '';
+  const jj = iso.slice(2,4), mm = iso.slice(5,7), tt = iso.slice(8,10);
   return nr
     ? `${jj}${mm}${tt}_QS-Bericht-${nr}-${kuerzelClean}.docx`
     : `${jj}${mm}${tt}_QS-Bericht-${kuerzelClean}.docx`;
@@ -905,6 +938,8 @@ function buildBerichtskopfPayload(){
     verteiler: document.getElementById('rVerteiler').value,
     rahmentermine: document.getElementById('rRahmen').value,
     rahmenHinweis: document.getElementById('rRahmenHinweis').value,
+    teilnehmer: document.getElementById('rTeilnehmer').value,
+    kurzThemaDatum: document.getElementById('rKurzThemaDatum').value,
     // Immer frisch berechnet (JJMMTT_QS-Bericht-Nr-Kürzel) statt aus einem
     // Eingabefeld gelesen - so stimmt er garantiert auch dann, wenn Datum/
     // Nr./Projekt sich seit dem letzten Mal geändert haben.
@@ -1096,17 +1131,36 @@ async function importContinueFile(e){
     // für den Nutzer nicht nachvollziehbare Erkennung anhand eines leeren
     // Felds und funktionierte in der Praxis nicht zuverlässig.
     const map = new Map(allEntries.map(x => [x.id, x]));
-    importedEntries.forEach(x => { if(!map.has(x.id)) map.set(x.id, x); });
+    const newOnes = importedEntries.filter(x => !map.has(x.id));
+    // Neu hinzukommende Feststellungen werden als Block HINTER die in dieser
+    // Sitzung bereits vorhandenen angehängt (statt sich je nach rohem
+    // Zeitstempel evtl. dazwischenzuschieben) - getrennt je Feststellungsart
+    // (Dokumentation/Veranlassungen), die Reihenfolge UNTEREINANDER aus der
+    // importierten Datei bleibt dabei erhalten.
+    const maxSortOrderByType = {};
+    allEntries.forEach(x => {
+      const t = x.type || 'doku';
+      maxSortOrderByType[t] = Math.max(maxSortOrderByType[t] || 0, x.sortOrder || 0);
+    });
+    const newOnesSorted = newOnes.slice().sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+    const appendCounter = {};
+    newOnesSorted.forEach(x => {
+      const t = x.type || 'doku';
+      if(maxSortOrderByType[t] === undefined) maxSortOrderByType[t] = 0;
+      appendCounter[t] = (appendCounter[t] || 0) + 1;
+      x.sortOrder = maxSortOrderByType[t] + appendCounter[t];
+    });
+    newOnesSorted.forEach(x => map.set(x.id, x));
     allEntries = Array.from(map.values());
     renderRecent();
-    importedEntries.forEach(x => idbPutEntry(x));
+    newOnesSorted.forEach(x => idbPutEntry(x));
 
     importedVerlauf.forEach(v => {
       if(!verlaufEntries.some(x => x.von === v.von && x.bis === v.bis)) verlaufEntries.push(v);
     });
     if(importedVerlauf.length){ renderVerlauf(); idbPutMeta('verlauf', verlaufEntries); }
 
-    setConnStatus(true, importedEntries.length + ' Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
+    setConnStatus(true, newOnesSorted.length + ' neue Einträge geladen — insgesamt jetzt ' + allEntries.length + ' in dieser Sammlung.');
 
     // Berichtskopf nur uebernehmen, wenn die Felder noch leer sind (eigene,
     // bereits eingetragene Werte in dieser Sitzung nicht ueberschreiben).
@@ -1123,6 +1177,8 @@ async function importContinueFile(e){
       setIfEmpty('rVerteiler', bk.verteiler);
       setIfEmpty('rRahmen', bk.rahmentermine);
       setIfEmpty('rRahmenHinweis', bk.rahmenHinweis);
+      setIfEmpty('rTeilnehmer', bk.teilnehmer);
+      setIfEmpty('rKurzThemaDatum', bk.kurzThemaDatum);
       updateHeaderProj();
       scheduleBerichtskopfSave();
     }
@@ -1149,49 +1205,94 @@ function setType(t){
 // Versionen (das war zeitweise sogar ein bekannter WebKit-Regressions-Bug). Deshalb wird
 // die Ausrichtung hier immer explizit selbst korrigiert, statt sich auf das Browser-
 // Verhalten zu verlassen — dadurch sieht das Foto (und die Position des Zeitstempels)
-// auf jedem Gerät gleich aus.
+// auf jedem Gerät gleich aus. Im selben Durchgang wird - falls vorhanden - auch das
+// EXIF-Aufnahmedatum (DateTimeOriginal, das "Uhrfeld" der Kamera) ausgelesen, damit der
+// Stand jeder Feststellung automatisch dem tatsächlichen Aufnahmezeitpunkt entspricht.
 
-function getExifOrientation(buffer){
+function getExifMeta(buffer){
+  const result = { orientation: 1, dateTimeOriginal: null };
   const view = new DataView(buffer);
-  if(view.byteLength < 4 || view.getUint16(0, false) !== 0xFFD8) return 1; // kein JPEG
+  if(view.byteLength < 4 || view.getUint16(0, false) !== 0xFFD8) return result; // kein JPEG
   const length = view.byteLength;
   let offset = 2;
   while(offset + 4 <= length){
     const marker = view.getUint16(offset, false);
     if(marker === 0xFFE1){ // APP1 (EXIF)
-      if(offset + 10 > length || view.getUint32(offset + 4, false) !== 0x45786966) return 1; // "Exif"
+      if(offset + 10 > length || view.getUint32(offset + 4, false) !== 0x45786966) return result; // "Exif"
       const tiffOffset = offset + 10;
-      if(tiffOffset + 8 > length) return 1;
+      if(tiffOffset + 8 > length) return result;
       const little = view.getUint16(tiffOffset, false) === 0x4949;
+
+      function readAscii(valOffset, count){
+        let s = '';
+        for(let k = 0; k < count - 1; k++){ // letztes Byte ist der Null-Terminator
+          if(valOffset + k >= length) break;
+          s += String.fromCharCode(view.getUint8(valOffset + k));
+        }
+        return s;
+      }
+
+      function parseIFD(ifdOffset){
+        const entries = {};
+        if(ifdOffset < 0 || ifdOffset + 2 > length) return entries;
+        const num = view.getUint16(ifdOffset, little);
+        for(let i = 0; i < num; i++){
+          const entryOffset = ifdOffset + 2 + i * 12;
+          if(entryOffset + 12 > length) break;
+          entries[view.getUint16(entryOffset, little)] = {
+            type: view.getUint16(entryOffset + 2, little),
+            count: view.getUint32(entryOffset + 4, little),
+            valOffsetField: entryOffset + 8
+          };
+        }
+        return entries;
+      }
+
+      function getAscii(entry){
+        if(!entry) return null;
+        const dataOffset = entry.count <= 4 ? entry.valOffsetField : tiffOffset + view.getUint32(entry.valOffsetField, little);
+        return readAscii(dataOffset, entry.count);
+      }
+
       const firstIFDOffset = view.getUint32(tiffOffset + 4, little);
-      const dirOffset = tiffOffset + firstIFDOffset;
-      if(dirOffset + 2 > length) return 1;
-      const entries = view.getUint16(dirOffset, little);
-      for(let i = 0; i < entries; i++){
-        const entryOffset = dirOffset + 2 + i * 12;
-        if(entryOffset + 10 > length) break;
-        if(view.getUint16(entryOffset, little) === 0x0112){
-          return view.getUint16(entryOffset + 8, little);
+      const ifd0 = parseIFD(tiffOffset + firstIFDOffset);
+
+      if(ifd0[0x0112]) result.orientation = view.getUint16(ifd0[0x0112].valOffsetField, little);
+
+      // Bevorzugt DateTimeOriginal (0x9003) aus dem Exif-Unterverzeichnis
+      // (0x8769) - das eigentliche Aufnahmedatum der Kamera; fällt sonst auf
+      // DateTimeDigitized oder das allgemeine DateTime-Feld in IFD0 zurück.
+      let dt = getAscii(ifd0[0x0132]);
+      if(ifd0[0x8769]){
+        const exifIFD = parseIFD(tiffOffset + view.getUint32(ifd0[0x8769].valOffsetField, little));
+        dt = getAscii(exifIFD[0x9003]) || getAscii(exifIFD[0x9004]) || dt;
+      }
+      if(dt){
+        const m = /^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/.exec(dt.trim());
+        if(m){
+          const d = new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+          if(!isNaN(d.getTime())) result.dateTimeOriginal = d;
         }
       }
-      return 1;
+      return result;
     } else if((marker & 0xFF00) !== 0xFF00){
       break;
     } else {
       offset += 2 + view.getUint16(offset + 2, false);
     }
   }
-  return 1;
+  return result;
 }
 
-// Liefert ein bereits korrekt ausgerichtetes Canvas (Breite/Höhe entsprechen der
-// sichtbaren, aufrechten Ausrichtung des Fotos).
+// Liefert das bereits korrekt ausgerichtete Canvas sowie (falls vorhanden) das
+// EXIF-Aufnahmedatum des Fotos.
 function loadOrientedImage(file){
   return new Promise((resolve, reject) => {
     const exifReader = new FileReader();
     exifReader.onload = function(exifEv){
-      let orientation = 1;
-      try{ orientation = getExifOrientation(exifEv.target.result); }catch(err){ orientation = 1; }
+      let meta = { orientation: 1, dateTimeOriginal: null };
+      try{ meta = getExifMeta(exifEv.target.result); }catch(err){ /* kein/ungültiges EXIF - Fallback bleibt aktiv */ }
+      const orientation = meta.orientation;
 
       const blobUrl = URL.createObjectURL(file);
       const img = new Image();
@@ -1214,7 +1315,7 @@ function loadOrientedImage(file){
         }
         ctx.drawImage(img, 0, 0, iw, ih);
         URL.revokeObjectURL(blobUrl);
-        resolve(canvas);
+        resolve({ canvas, exifDate: meta.dateTimeOriginal });
       };
       img.onerror = function(){ URL.revokeObjectURL(blobUrl); reject(new Error('Bild konnte nicht geladen werden.')); };
       img.src = blobUrl;
@@ -1278,8 +1379,17 @@ async function processPhotoFiles(files){
 // Vollversion erzeugen, als neue Feststellung speichern. Gibt ein Promise
 // zurueck, das erst nach vollstaendigem Speichern (inkl. Galerie) aufgeloest wird.
 function processSinglePhoto(file, sortOrder){
-  return loadOrientedImage(file).then(function(oriented){
+  return loadOrientedImage(file).then(function(result){
+    const oriented = result.canvas;
     const fullW = oriented.width, fullH = oriented.height;
+
+    // Stand-Datum der Feststellung: bevorzugt aus dem EXIF-Aufnahmedatum des
+    // Fotos (dem "Uhrfeld" der Kamera - wann das Foto tatsächlich gemacht
+    // wurde), sonst aus dem Änderungsdatum der Datei, sonst heutiges Datum.
+    // Bleibt in der Berichtsseite jederzeit manuell änderbar.
+    const capturedAt = result.exifDate || (file.lastModified ? new Date(file.lastModified) : new Date());
+    const entryDatum = capturedAt.toLocaleDateString('de-DE');
+    const entryDatumISO = capturedAt.toISOString().slice(0,10);
 
     function drawTimestamp(ctx, w, h){
       if(!document.getElementById('fTimestamp').checked) return;
@@ -1341,11 +1451,10 @@ function processSinglePhoto(file, sortOrder){
           // gespeichert - Gewerk/Ort/Info etc. werden erst später auf der
           // Berichtsseite eingetragen.
           const entryId = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-          const nowIso = new Date().toISOString().slice(0,10);
           const entry = {
             id: entryId, type: currentType, gewerk: '', ort: '', arbeiten: '',
             bauteil: '', material: '', verantwortlich: '',
-            datum: todayStr(), datumISO: nowIso, bearbeitet: false,
+            datum: entryDatum, datumISO: entryDatumISO, bearbeitet: false,
             sortOrder, photoUrl: previewDataUrl, photoPrintUrl: printDataUrl, createdAt: Date.now()
           };
           allEntries.push(entry);
@@ -1626,7 +1735,7 @@ function renderRahmenSetup(){
   const rows = getRahmenRows();
   container.innerHTML = rows.length ? `
     <table class="editable-table">
-      <tr><th>Haus</th><th>Gewerk</th><th>TP von</th><th>TP bis</th><th></th></tr>
+      <tr><th>Bereich</th><th>Gewerk</th><th colspan="2">TP</th><th></th></tr>
       ${rows.map((r,i) => {
         const [haus='',gewerk='',tpVon='',tpBis=''] = r;
         return `<tr>
@@ -1647,7 +1756,7 @@ function renderRahmenStatus(){
   if(!rows.length){ container.innerHTML = '<div class="empty">Erst oben unter „Rahmentermine festlegen" Zeilen anlegen.</div>'; return; }
   container.innerHTML = `
     <table class="editable-table">
-      <tr><th>Haus</th><th>Gewerk</th><th>TP von–bis</th><th>Bautenstand</th><th>%</th><th>Pünktlichkeit</th><th>Prognose zum TP</th></tr>
+      <tr><th>Bereich</th><th>Gewerk</th><th>TP</th><th>Bautenstand</th><th>%</th><th>Pünktlichkeit</th><th>Prognose zum TP</th></tr>
       ${rows.map((r,i) => {
         const [haus='',gewerk='',tpVon='',tpBis='',bautenstand='',prozent='',status='',prognose=''] = r;
         return `<tr>
@@ -1741,24 +1850,27 @@ function renderEditor(){
     const list = editorShowOnlyOpen ? fullList.filter(e=>!e.bearbeitet) : fullList;
     if(!list.length) return `<div class="empty">${editorShowOnlyOpen ? 'Keine unbearbeiteten Einträge mehr' : 'Keine Einträge'}</div>`;
     return list.map((e, idx) => `
-    <div class="edit-row" data-id="${e.id}">
-      <div class="order-btns">
-        <button type="button" class="order-btn" onclick="moveEntry('${e.id}','up')" ${idx===0 ? 'disabled' : ''} title="Nach oben verschieben">▲</button>
-        <button type="button" class="order-btn" onclick="moveEntry('${e.id}','down')" ${idx===list.length-1 ? 'disabled' : ''} title="Nach unten verschieben">▼</button>
+    <div class="edit-row" data-id="${e.id}" draggable="true"
+      ondragstart="handleDragStart(event,'${e.id}')" ondragend="handleDragEnd(event)"
+      ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'${e.id}')">
+      <div class="drag-handle" title="Zum Verschieben ziehen">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
       </div>
       <div class="edit-thumb"><img src="${e.photoUrl}" onclick="openLightboxById('${e.id}')" title="Zum Vergrößern klicken"></div>
       <div class="edit-fields">
         <div class="edit-status">${e.bearbeitet ? '<span class="badge green">Gespeichert</span>' : '<span class="badge orange">Noch nicht bearbeitet</span>'}</div>
         <div class="row2">
-          <input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="Gewerk">
-          <input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="Bauteil">
+          <div><label>Gewerk</label><input type="text" id="ed_gewerk_${e.id}" value="${escapeHtml(e.gewerk)}" placeholder="z. B. Rohbau"></div>
+          <div><label>Bauteil</label><input type="text" id="ed_bauteil_${e.id}" value="${escapeHtml(e.bauteil||'')}" placeholder="z. B. Wände EG"></div>
         </div>
-        <textarea id="ed_arbeiten_${e.id}" placeholder="Info (bei Bedarf inkl. Material)">${escapeHtml(e.arbeiten||'')}</textarea>
-        ${e.type==='veranlassung' ? `<input type="text" id="ed_verantwortlich_${e.id}" value="${escapeHtml(e.verantwortlich||'')}" placeholder="Verantwortlichkeit">` : ''}
-        <input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="Datum">
-        <div class="edit-actions">
-          <button class="btn-secondary small" onclick="saveEntryEdit('${e.id}')">Speichern</button>
-          <button class="del-btn" onclick="deleteEntry('${e.id}')">Löschen</button>
+        <div class="field-block"><label>Info</label><textarea id="ed_arbeiten_${e.id}" placeholder="bei Bedarf inkl. Material">${escapeHtml(e.arbeiten||'')}</textarea></div>
+        ${e.type==='veranlassung' ? `<div class="field-block"><label>Verantwortlichkeit</label><input type="text" id="ed_verantwortlich_${e.id}" value="${escapeHtml(e.verantwortlich||'')}" placeholder="z. B. Fa. Musterbau GmbH"></div>` : ''}
+        <div class="edit-bottom-row">
+          <div class="edit-datum"><label>Datum</label><input type="text" id="ed_datum_${e.id}" value="${escapeHtml(e.datum)}" placeholder="TT.MM.JJJJ"></div>
+          <div class="edit-actions">
+            <button class="btn-secondary small" onclick="saveEntryEdit('${e.id}')">Speichern</button>
+            <button class="del-btn" onclick="deleteEntry('${e.id}')">Löschen</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1780,22 +1892,87 @@ function closeLightbox(){
   document.getElementById('lightbox').classList.remove('active');
 }
 
-// Reihenfolge per Auf/Ab-Button ändern - statt freiem Ziehen (dabei kam es zu
-// unvorhersehbaren Sprüngen durch die Kombination aus CSS-Transform und
-// gleichzeitiger DOM-Neuanordnung). Diese Variante vertauscht ausschließlich
-// die sortOrder-Werte zweier direkt benachbarter Einträge - eindeutig,
-// nachvollziehbar und ohne jede Koordinaten-/Positionsberechnung.
-function moveEntry(id, dir){
-  const e = allEntries.find(x => x.id === id);
-  if(!e) return;
-  const group = allEntries.filter(x => x.type === e.type).slice().sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
-  const idx = group.findIndex(x => x.id === id);
-  const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-  if(swapIdx < 0 || swapIdx >= group.length) return;
-  const other = group[swapIdx];
-  const tmp = e.sortOrder;
-  updateEntryFields(e.id, { sortOrder: other.sortOrder });
-  updateEntryFields(other.id, { sortOrder: tmp });
+// Reihenfolge per Maus-Drag ändern (HTML5 Drag-and-Drop-API - kein eigenes
+// Koordinaten-/Transform-Handling nötig, dadurch robust). Gezogen wird immer
+// nur innerhalb derselben Liste (Dokumentation bzw. Veranlassungen bleiben
+// getrennt); der gezogene Eintrag wird vor dem Zieleintrag einsortiert und
+// alle sortOrder-Werte der betroffenen Gruppe danach neu, fortlaufend vergeben.
+let dragEntryId = null;
+let lastDragClientY = null;
+let autoScrollActive = false;
+
+// Waehrend des Ziehens automatisch scrollen, sobald der Zeiger nahe am
+// oberen/unteren Rand des sichtbaren Bereichs ist - sonst laesst sich per
+// Maus nur innerhalb des aktuell sichtbaren Ausschnitts verschieben (die
+// Seite bewegt sich beim Ziehen von Haus aus nicht mit).
+function autoScrollStep(){
+  if(!autoScrollActive) return;
+  if(lastDragClientY != null){
+    const margin = 110, maxSpeed = 24;
+    let dy = 0;
+    if(lastDragClientY < margin) dy = -maxSpeed * (1 - lastDragClientY / margin);
+    else if(lastDragClientY > window.innerHeight - margin) dy = maxSpeed * (1 - (window.innerHeight - lastDragClientY) / margin);
+    if(dy) window.scrollBy(0, dy);
+  }
+  requestAnimationFrame(autoScrollStep);
+}
+// Verfolgt die Zeigerposition waehrend des gesamten Ziehvorgangs, auch
+// wenn der Zeiger kurz ueber einem Bereich ausserhalb der Listenzeilen
+// steht (z. B. beim Ziehen ganz an den Seitenrand).
+document.addEventListener('dragover', e => {
+  if(dragEntryId){ lastDragClientY = e.clientY; }
+});
+
+function handleDragStart(e, id){
+  dragEntryId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  try{ e.dataTransfer.setData('text/plain', id); }catch(err){}
+  e.currentTarget.classList.add('dragging');
+  autoScrollActive = true;
+  lastDragClientY = e.clientY;
+  requestAnimationFrame(autoScrollStep);
+}
+
+function handleDragEnd(e){
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.edit-row.drag-over').forEach(el => el.classList.remove('drag-over'));
+  dragEntryId = null;
+  autoScrollActive = false;
+  lastDragClientY = null;
+}
+
+function handleDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const row = e.currentTarget;
+  if(row.dataset.id === dragEntryId) return;
+  document.querySelectorAll('.edit-row.drag-over').forEach(el => { if(el !== row) el.classList.remove('drag-over'); });
+  row.classList.add('drag-over');
+}
+
+function handleDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e, targetId){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const draggedId = dragEntryId;
+  dragEntryId = null;
+  if(!draggedId || draggedId === targetId) return;
+  const dragged = allEntries.find(x => x.id === draggedId);
+  const target = allEntries.find(x => x.id === targetId);
+  if(!dragged || !target || dragged.type !== target.type) return;
+
+  const group = allEntries.filter(x => x.type === dragged.type).slice().sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+  const fromIdx = group.findIndex(x => x.id === draggedId);
+  if(fromIdx === -1) return;
+  group.splice(fromIdx, 1);
+  const insertAt = group.findIndex(x => x.id === targetId);
+  group.splice(insertAt, 0, dragged);
+
+  const base = Date.now();
+  group.forEach((entry, i) => updateEntryFields(entry.id, { sortOrder: base + i }));
   renderEditor();
   refreshReportViews();
 }
@@ -1869,7 +2046,7 @@ function renderReport(){
   const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}">` : `<div class="logo-placeholder"><div></div><div></div><div></div><div></div></div>`;
 
   const kurz = berichtsModus === 'kurz';
-  const subtitle = kurz ? 'Baustellen-Kurzbericht' : 'Leistungsfeststellung – Qualitätssicherung';
+  const subtitle = kurz ? 'Kurzbericht-Baustellenbegehung' : 'Leistungsfeststellung – Qualitätssicherung';
 
   const projekt = document.getElementById('rProjekt').value || '—';
   const baustelle = document.getElementById('rBaustelle').value || '—';
@@ -1881,7 +2058,15 @@ function renderReport(){
   const berichtsNr = document.getElementById('rBerichtsNr').value.trim() || '1';
   const berichtsNrPadded = berichtsNr.padStart(3,'0');
   const isoToday = new Date().toISOString().slice(2,10).replace(/-/g,'');
-  const autoDateiname = isoToday + '_' + escapeHtml(verfasser) + (kurz ? '-Kurzbericht_' : '-QS-Bautenstand_') + berichtsNrPadded + '.docx';
+  // Kurzbericht: Dokumentbenennung ohne Berichtsnummer, stattdessen das Datum
+  // der Begehung (eigenes Eingabefeld) - Format wie im Beispiel:
+  // "JJMMTT_Kurzbericht-Baustellenbegehung-Kürzel".
+  const kurzThemaDatumIso = kurz ? parseGermanDateToISO(document.getElementById('rKurzThemaDatum').value) : null;
+  const kurzDateJJMMTT = kurzThemaDatumIso ? kurzThemaDatumIso.slice(2,4) + kurzThemaDatumIso.slice(5,7) + kurzThemaDatumIso.slice(8,10) : isoToday;
+  const kuerzelClean = (guessKuerzel() || escapeHtml(verfasser)).replace(/[^A-Za-z0-9äöüÄÖÜß-]+/g,'');
+  const autoDateiname = kurz
+    ? `${kurzDateJJMMTT}_Kurzbericht-Baustellenbegehung-${kuerzelClean}.docx`
+    : isoToday + '_' + escapeHtml(verfasser) + '-QS-Bautenstand_' + berichtsNrPadded + '.docx';
   const dateiname = (document.getElementById('rDateiname').value.trim() || autoDateiname).replace(/\.docx$/i, '');
 
   const verteilerRows = parseSemicolonRows(document.getElementById('rVerteiler').value);
@@ -1906,12 +2091,12 @@ function renderReport(){
     // ableiten (bestehendes Feld, keine neue Datenquelle) - Konvention: der
     // Hinweistext beginnt mit "TP vom TT.MM.JJJJ ...".
     const tpDateMatch = /TP\s+vom\s+(\d{1,2}\.\d{1,2}\.\d{2,4})/i.exec(rahmenHinweis);
-    const tpHeader = tpDateMatch ? `TP vom ${tpDateMatch[1]}` : 'TP von / TP bis';
+    const tpHeader = tpDateMatch ? `TP vom ${tpDateMatch[1]}` : 'TP';
     rahmenBody += `<h3 class="section">Rahmentermine</h3>
       ${rahmenHinweis ? `<div class="section-note">${escapeHtml(rahmenHinweis)}</div>` : ''}
       <table class="rahmen-table">
         <colgroup><col class="c-haus"><col class="c-gewerk"><col class="c-tpvon"><col class="c-tpbis"><col class="c-stand"><col class="c-proz"><col class="c-ampel"><col class="c-prognose"></colgroup>
-        <tr><th>Haus</th><th>Gewerk</th><th colspan="2">${escapeHtml(tpHeader)}</th><th colspan="3">Bautenstand</th><th>Prognose</th></tr>
+        <tr><th>Bereich</th><th>Gewerk</th><th colspan="2">${escapeHtml(tpHeader)}</th><th colspan="3">Bautenstand</th><th>Prognose</th></tr>
         ${rahmenRows.length > 0 ? rahmenRows.map(r => {
           const [haus='', gewerk='', tpVon='', tpBis='', bautenstand='', prozent='', status='', prognose=''] = r;
           const swatchColor = RAHMEN_SWATCH_COLOR[status] || '';
@@ -1994,14 +2179,19 @@ function renderReport(){
 
   const totalPages = pageCounter - 1;
 
+  const kurzThemaDatum = kurz ? (document.getElementById('rKurzThemaDatum').value || '').trim() : '';
+  const kurzThema = `Kurzbericht zur Baustellenbegehung${kurzThemaDatum ? ' vom ' + escapeHtml(kurzThemaDatum) : ''}`;
+  const teilnehmerLines = kurz ? (document.getElementById('rTeilnehmer').value || '').split('\n').map(s=>s.trim()).filter(Boolean) : [];
+
   const coverBody = `
-    <div class="cover-title">${kurz ? 'Baustellen-Kurzbericht' : 'Leistungsfeststellung – Qualitätssicherung'}</div>
+    <div class="cover-title">${kurz ? 'Kurzbericht-Baustellenbegehung' : 'Leistungsfeststellung – Qualitätssicherung'}</div>
     <table class="meta-table">
-      <tr><td class="k">Thema</td><td>${kurz ? 'Kurzbericht zum Bautenstand' : 'Bericht zur Leistungsfeststellung – Qualitätssicherung'}</td></tr>
+      <tr><td class="k">Thema</td><td>${kurz ? kurzThema : 'Bericht zur Leistungsfeststellung – Qualitätssicherung'}</td></tr>
       <tr class="gap"><td class="k">Verfasser</td><td>${escapeHtml(verfasser)}</td></tr>
       <tr><td class="k">Datum</td><td>${escapeHtml(datum)}</td></tr>
       <tr><td class="k">Seitenanzahl</td><td>${totalPages} Seiten</td></tr>
       <tr class="gap"><td class="k">Kunde</td><td>${escapeHtml(kunde)}</td></tr>
+      ${kurz && teilnehmerLines.length ? `<tr class="gap"><td class="k">Teilnehmer</td><td>${teilnehmerLines.map(escapeHtml).join('<br>')}</td></tr>` : ''}
     </table>
     ${kurz ? '' : `<div class="rp-subhead">Verteiler</div>
     <table class="verteiler-table">
@@ -2021,7 +2211,7 @@ function renderReport(){
   `;
 
   let html = `<div class="report-page">
-    <div class="rp-header">
+    <div class="rp-header${kurz ? ' cover-header' : ''}">
       <div class="titles"><div class="t1">${escapeHtml(projekt)}</div><div class="t2">${subtitle}</div></div>
       <div class="logo-mark">${logoHtml}</div>
     </div>
@@ -2086,8 +2276,7 @@ async function exportPdf(){
       if(i > 0) pdf.addPage();
       pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
     }
-    let filename = (document.getElementById('rDateiname').value.trim() || autoDateinameFromInputs() || 'qs-bericht.docx').replace(/\.docx$/i, '.pdf');
-    if(berichtsModus === 'kurz') filename = filename.replace(/QS-Bericht/i, 'Kurzbericht');
+    const filename = (document.getElementById('rDateiname').value.trim() || autoDateinameFromInputs() || (berichtsModus === 'kurz' ? 'kurzbericht.docx' : 'qs-bericht.docx')).replace(/\.docx$/i, '.pdf');
     pdf.save(filename);
     hint.textContent = 'Fertig — "' + filename + '" wurde heruntergeladen.';
   }catch(err){
